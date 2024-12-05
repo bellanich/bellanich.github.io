@@ -1,0 +1,1370 @@
+<!DOCTYPE html><html lang="en-us" >
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  
+  
+  
+  <meta name="generator" content="Wowchemy 5.0.0-beta.1 for Hugo">
+  
+
+  
+
+  
+  
+
+  
+  
+  
+  
+  
+    
+    
+    
+  
+  
+
+  <meta name="author" content="Bella Nicholson">
+
+  
+  
+  
+    
+  
+  <meta name="description" content="The open-source Machine Learning Compiler Engine project is transforming foundation models into efficient and portable powerhouses.">
+
+  
+  <link rel="alternate" hreflang="en-us" href="http://localhost:1313/post/ml-compiler/">
+
+  
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+  
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  
+
+  
+  
+  
+  <meta name="theme-color" content="#6D49FF">
+  
+
+  
+  
+  
+  <script src="/js/mathjax-config.js"></script>
+  
+
+  
+  
+  
+  
+    
+    
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/academicons/1.9.0/css/academicons.min.css" integrity="sha512-W4yqoT1+8NLkinBLBZko+dFB2ZbHsYLDdr50VElllRcNt2Q4/GSs6u71UHKxB7S6JEMCp5Ve4xjh3eGQl/HRvg==" crossorigin="anonymous">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/all.min.css" integrity="sha256-FMvZuGapsJLjouA6k7Eo2lusoAX9i0ShlWFG6qt7SLc=" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css" integrity="sha256-Vzbj7sDDS/woiFS3uNKo8eIuni59rjyNGtXfstRzStA=" crossorigin="anonymous" media="print" onload="this.media='all'">
+
+    
+    
+    
+      
+    
+    
+      
+      
+        
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.2.0/styles/github.min.css" crossorigin="anonymous" title="hl-light" media="print" onload="this.media='all'">
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.2.0/styles/dracula.min.css" crossorigin="anonymous" title="hl-dark" media="print" onload="this.media='all'" disabled>
+        
+      
+    
+
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.min.css" integrity="sha512-1xoFisiGdy9nvho8EgXuXvnpR5GAMSjFwp40gSRE3NwdUdIMIKuPa7bqoUhLD0O/5tPNhteAsE5XyyMi5reQVA==" crossorigin="anonymous" media="print" onload="this.media='all'">
+    
+
+    
+
+    
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/lazysizes/5.2.2/lazysizes.min.js" integrity="sha512-TmDwFLhg3UA4ZG0Eb4MIyT1O1Mb+Oww5kFG0uHqXsdbyZz9DcvYQhKpGgNkamAI6h2lGGZq2X8ftOJvF/XjTUg==" crossorigin="anonymous" async></script>
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" integrity="" crossorigin="anonymous" async></script>
+      
+    
+      
+
+      
+      
+
+      
+    
+      
+
+      
+      
+
+      
+    
+
+  
+
+  
+  
+  
+    
+      
+      <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto+Mono&family=Roboto:wght@400;700&display=swap">
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto+Mono&family=Roboto:wght@400;700&display=swap" media="print" onload="this.media='all'">
+    
+  
+
+  
+  
+  
+  
+  
+  <link rel="stylesheet" href="/css/wowchemy.css">
+
+  
+
+
+
+
+  
+
+  
+
+
+  
+  
+
+  
+
+  
+  <link rel="manifest" href="/index.webmanifest">
+  
+
+  <link rel="icon" type="image/png" href="/images/icon_huc1af03d399f8074958ea0ac44dc20f74_179729_32x32_fill_lanczos_center_3.png">
+  <link rel="apple-touch-icon" type="image/png" href="/images/icon_huc1af03d399f8074958ea0ac44dc20f74_179729_192x192_fill_lanczos_center_3.png">
+
+  <link rel="canonical" href="http://localhost:1313/post/ml-compiler/">
+
+  
+  
+  
+  
+  
+  
+  
+    
+  
+  
+  <meta property="twitter:card" content="summary_large_image">
+  
+  <meta property="og:site_name" content="Bella Nicholson">
+  <meta property="og:url" content="http://localhost:1313/post/ml-compiler/">
+  <meta property="og:title" content="Shrinking the Impossible (Part 1): Optimizing Foundation Models for Edge Devices | Bella Nicholson">
+  <meta property="og:description" content="The open-source Machine Learning Compiler Engine project is transforming foundation models into efficient and portable powerhouses."><meta property="og:image" content="http://localhost:1313/post/ml-compiler/featured.png">
+  <meta property="twitter:image" content="http://localhost:1313/post/ml-compiler/featured.png"><meta property="og:locale" content="en-us">
+  
+    
+      <meta property="article:published_time" content="2024-11-29T00:00:00&#43;00:00">
+    
+    <meta property="article:modified_time" content="2024-11-29T00:00:00&#43;00:00">
+  
+
+  
+
+
+    
+
+
+
+
+
+
+  
+
+
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "http://localhost:1313/post/ml-compiler/"
+  },
+  "headline": "Shrinking the Impossible (Part 1): Optimizing Foundation Models for Edge Devices",
+  
+  "image": [
+    "http://localhost:1313/post/ml-compiler/featured.png"
+  ],
+  
+  "datePublished": "2024-11-29T00:00:00Z",
+  "dateModified": "2024-11-29T00:00:00Z",
+  
+  "author": {
+    "@type": "Person",
+    "name": "Bella Nicholson"
+  },
+  
+  "publisher": {
+    "@type": "Organization",
+    "name": "Bella Nicholson",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "http://localhost:1313/images/icon_huc1af03d399f8074958ea0ac44dc20f74_179729_192x192_fill_lanczos_center_3.png"
+    }
+  },
+  "description": "The open-source Machine Learning Compiler Engine project is transforming foundation models into efficient and portable powerhouses."
+}
+</script>
+
+  
+
+  
+
+
+  
+
+
+  
+
+
+
+
+
+  <title>Shrinking the Impossible (Part 1): Optimizing Foundation Models for Edge Devices | Bella Nicholson</title>
+
+</head>
+
+
+<body id="top" data-spy="scroll" data-offset="70" data-target="#TableOfContents" class="page-wrapper  ">
+
+  
+  
+  
+  
+  
+  
+  
+  
+  <script src="/js/wowchemy-init.min.js"></script>
+
+  
+
+<aside class="search-modal" id="search">
+  <div class="container">
+    <section class="search-header">
+
+      <div class="row no-gutters justify-content-between mb-3">
+        <div class="col-6">
+          <h1>Search</h1>
+        </div>
+        <div class="col-6 col-search-close">
+          <a class="js-search" href="#" aria-label="Close"><i class="fas fa-times-circle text-muted" aria-hidden="true"></i></a>
+        </div>
+      </div>
+
+      <div id="search-box">
+        
+        <input name="q" id="search-query" placeholder="Search..." autocapitalize="off"
+        autocomplete="off" autocorrect="off" spellcheck="false" type="search" class="form-control"
+        aria-label="Search...">
+        
+      </div>
+
+      
+
+    </section>
+    <section class="section-search-results">
+
+      <div id="search-hits">
+        
+      </div>
+
+    </section>
+  </div>
+</aside>
+
+
+
+  <div class="page-header">
+    
+
+
+
+
+
+
+
+
+
+
+
+
+<nav class="navbar navbar-expand-lg navbar-light compensate-for-scrollbar" id="navbar-main">
+  <div class="container">
+
+    
+    <div class="d-none d-lg-inline-flex">
+      <a class="navbar-brand" href="/">Bella Nicholson</a>
+    </div>
+    
+
+    
+    <button type="button" class="navbar-toggler" data-toggle="collapse"
+            data-target="#navbar-content" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
+    <span><i class="fas fa-bars"></i></span>
+    </button>
+    
+
+    
+    <div class="navbar-brand-mobile-wrapper d-inline-flex d-lg-none">
+      <a class="navbar-brand" href="/">Bella Nicholson</a>
+    </div>
+    
+
+    
+    
+    <div class="navbar-collapse main-menu-item collapse justify-content-start" id="navbar-content">
+
+      
+      <ul class="navbar-nav d-md-inline-flex">
+        
+
+        
+
+        
+        
+        
+          
+        
+
+        
+
+        
+        
+        
+        
+
+        
+          
+            
+            
+          
+          
+            
+            
+            
+              
+            
+            
+          
+        
+
+        <li class="nav-item">
+          <a class="nav-link " href="/#about"><span>Bio</span></a>
+        </li>
+
+        
+        
+
+        
+
+        
+        
+        
+          
+        
+
+        
+
+        
+        
+        
+        
+
+        
+          
+            
+            
+          
+          
+            
+            
+            
+            
+          
+        
+
+        <li class="nav-item">
+          <a class="nav-link " href="/blog/#blog"><span>Blog</span></a>
+        </li>
+
+        
+        
+
+        
+
+        
+        
+        
+          
+        
+
+        
+
+        
+        
+        
+        
+
+        
+          
+            
+            
+          
+          
+            
+            
+            
+            
+          
+        
+
+        <li class="nav-item">
+          <a class="nav-link " href="/experience/#experience"><span>Experience</span></a>
+        </li>
+
+        
+        
+
+        
+
+        
+        
+        
+          
+        
+
+        
+
+        
+        
+        
+        
+
+        
+          
+            
+            
+          
+          
+            
+            
+            
+            
+          
+        
+
+        <li class="nav-item">
+          <a class="nav-link " href="/projects/#projects"><span>Projects</span></a>
+        </li>
+
+        
+        
+
+        
+
+        
+        
+        
+          
+        
+
+        
+
+        
+        
+        
+        
+
+        
+          
+            
+            
+          
+          
+            
+            
+            
+            
+          
+        
+
+        <li class="nav-item">
+          <a class="nav-link " href="/talks/#talks"><span>Talks</span></a>
+        </li>
+
+        
+        
+
+        
+
+        
+        
+        
+          
+        
+
+        
+
+        
+        
+        
+        
+
+        
+          
+            
+            
+          
+          
+        
+
+        <li class="nav-item">
+          <a class="nav-link " href="/media/BellaNicholson_CV.pdf"><span>CV</span></a>
+        </li>
+
+        
+        
+
+      
+
+        
+      </ul>
+    </div>
+
+    <ul class="nav-icons navbar-nav flex-row ml-auto d-flex pl-md-2">
+
+      
+      
+        
+      
+
+      
+      
+      <li class="nav-item">
+        <a class="nav-link js-search" href="#" aria-label="Search"><i class="fas fa-search" aria-hidden="true"></i></a>
+      </li>
+      
+
+      
+      
+      <li class="nav-item dropdown theme-dropdown">
+        <a href="#" class="nav-link" data-toggle="dropdown" aria-haspopup="true" aria-label="Display preferences">
+          <i class="fas fa-moon" aria-hidden="true"></i>
+        </a>
+        <div class="dropdown-menu">
+          <a href="#" class="dropdown-item js-set-theme-light">
+            <span>Light</span>
+          </a>
+          <a href="#" class="dropdown-item js-set-theme-dark">
+            <span>Dark</span>
+          </a>
+          <a href="#" class="dropdown-item js-set-theme-auto">
+            <span>Automatic</span>
+          </a>
+        </div>
+      </li>
+      
+
+      
+
+    </ul>
+
+  </div>
+</nav>
+
+
+  </div>
+
+  <div class="page-body">
+    <article class="article">
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+
+<div class="article-container pt-3">
+  <h1>Shrinking the Impossible (Part 1): Optimizing Foundation Models for Edge Devices</h1>
+
+  
+
+  
+
+
+<div class="article-metadata">
+
+  
+  
+  
+  
+  <div>
+    
+
+  <span >
+      Bella Nicholson</span>
+  </div>
+  
+  
+
+  
+  <span class="article-date">
+    
+    
+      
+    
+    Nov 29, 2024
+  </span>
+  
+
+  
+
+  
+  <span class="middot-divider"></span>
+  <span class="article-reading-time">
+    8 min read
+  </span>
+  
+
+  
+  
+  
+  
+  
+
+  
+  
+
+</div>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</div>
+
+
+<div class="article-header article-container featured-image-wrapper mt-4 mb-4" style="max-width: 720px; max-height: 251px;">
+  <div style="position: relative">
+    <img src="/post/ml-compiler/featured_hufd76f89ebd91343d8d6bd9a6db6f3b0a_1964347_720x0_resize_lanczos_3.png" alt="" class="featured-image">
+    <span class="article-header-caption">Image credit: <a href="https://llm.mlc.ai" target="_blank" rel="noopener"><strong>MLC LLM</strong></a></span>
+  </div>
+</div>
+
+
+
+  <div class="article-container">
+
+    <div class="article-style">
+      <!-- Welcome 👋 -->
+<h2 id="introduction">Introduction</h2>
+<ul>
+<li>
+<p>Now a days, it&rsquo;s hard to have a casual conversation about Machine Learning without discussing large language models (LLMs). While the concept has been around since &hellip;, LLMs have taken the world by storm ever since ChatGPT was rolled out by OpenAI in Fall 2022.</p>
+</li>
+<li>
+<p>Current headlines focuses on how each new round of LLMs is beating the benchmark further, but something more interesting has been quietly going on in the background: the development of high-performance and ultra-lightweight LLMs.</p>
+</li>
+<li>
+<p>Since Summer 2024, Google has quietly deployed an embedded LLM in its latest Android devices. Apple is extending its iPhone hardware capabilities to support its own set of embedded LLMs.</p>
+</li>
+<li>
+<p>Just as the first LLMs were closed before open source alternative started to appear (like the Llama family of models), a similar development is happening now for edge LLMs.</p>
+</li>
+</ul>
+<h3 id="why-do-we-need-need-edge-foundation-models">Why do we need need edge foundation models?</h3>
+<p>Classical foundation models are too large to fit on edge devices (like smartphones, IoT devices, or embedded systems). As a result, they have to be hosted on large servers — usually in some centralized cloud environments. This greatly limits the use cases of foundation models.</p>
+<ul>
+<li><strong>Cost efficiency.</strong> There&rsquo;s a huge cost entry barrier for developing and serving 10B+ parameter models. Simply put, the costs of running and powering servers adds up to millions of Euros. This not only prevents students from getting hands-on experience but also forces businesses to blindly rely on foundation model providers like OpenAI.</li>
+<li><strong>Unreliable internet connection.</strong> Cloud-based inference requires sending data to remote servers and waiting for results. This round trip can introduce delays, especially in areas with poor internet connection.</li>
+<li><strong>Privacy and security.</strong> Sending user data to the cloud poses privacy risks and potential compliance issues. Organizations can run into potential compliance issues (e.g., GDPR or HIPAA regulations), while users risk sharing more about themselves with internet companies than they would prefer to.</li>
+</ul>
+<p>Simply put, edge foundation models are more accessible than cloud-hosted foundation models. This greatly reduces the barriers of entries for AI-curious individuals and large organizations alike.</p>
+<br/>
+<h3 id="a-quantum-leaps-in-deploying-edge-foundation-models">A Quantum Leaps in Deploying Edge Foundation Models</h3>
+<ul>
+<li>6 months ago (July 2024), I tried to deploy Google&rsquo;s newly released <a href="https://huggingface.co/google/gemma-2-2b-it" target="_blank" rel="noopener">instruction-tuned Gemma 2B model</a> on my local machine (a MacBook Air with 8G of memory). My machine crashed halfway between serving its first request to me.
+<ul>
+<li><strong>What is Gemma?</strong> Gemma is the smallest and most lightweight LLM from <a href="https://deepmind.google/technologies/gemini/" target="_blank" rel="noopener">DeepMind&rsquo;s Gemini LLM family</a>. My machine crashed.
+<ul>
+<li>Description of Gemma from Google: &ldquo;Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights for both pre-trained variants and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.&rdquo;</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>MLC LLM as a powerful solution
+<ul>
+<li>Last week (Nov 2024), I used MLC LLM to deploy <a href="https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC" target="_blank" rel="noopener">a hardware optimized version of <code>gemma-2-2b-it</code></a> on edge as an iOS App.
+<ul>
+<li>I encountered zero performance issues on my MacBook Air.</li>
+<li>The responses of Gemma were so good that they were indistinguishable from its large scale alternatives, like <a href="https://chatgpt.com" target="_blank" rel="noopener">ChatGPT</a> or <a href="https://gemini.google.com/app" target="_blank" rel="noopener">Gemini</a>, in an every day conversation.</li>
+<li>TODO: have screenshots of conversation with Gemma. Showcase Gemma&rsquo;s ability to speak Spanish and German.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="how-does-mlc-llm-work">How does MLC LLM work?</h2>
+<p>At a high-level, <a href="https://github.com/mlc-ai/mlc-llm" target="_blank" rel="noopener">the MLC LLM project</a> works by quantizing LLM weights as its downloads the LLM model. This prevents your machine from crashing due to lack of memory. Afterwards, it embeds the quantized LLM model by applying hardware-specific optimizations during model compilation stage.</p>
+<figure>
+  <img src="./images/mlc_llm_workflow.png">
+  <figcaption> The MLCEngine embeds LLMs across different software platforms through model quantization and hardware-specific optimization  (<a href="[url](https://llm.mlc.ai)">source</a>)</figcaption>
+</figure>
+<p>In addition to model optimization, MLC offers a basic chat user interface for Android, iOS, Python CLI, and web browsers.</p>
+<p><strong>TODO: include a screenshot of MLC&rsquo;s iOS App</strong></p>
+<p>Let&rsquo;s take a moment to better understand how this model optimization process works.</p>
+<h3 id="quantization">Quantization</h3>
+<p><a href="https://llm.mlc.ai/docs/get_started/introduction.html#chat-cli" target="_blank" rel="noopener">MLC LLM caches pre-quantized model weights and compiled model library locally</a>. Meaning, you <strong>only</strong> have to <strong>download the model and quantize it once</strong>.</p>
+<h4 id="a-quick-refresher-on-quantization">A Quick Refresher on Quantization</h4>
+<ul>
+<li>What is model quantization? Give a definition. Describe its underlying intuition</li>
+<li>Give an example of the impact that model quantization can make on cloud compute costs (if possible)</li>
+<li>What are popular methods? Explain 1-2 of the most popular ones that MLC AI uses.
+<ol>
+<li><strong>Method A.</strong>  Words&hellip;</li>
+<li><strong>Method B.</strong> Words&hellip;</li>
+</ol>
+</li>
+</ul>
+<h4 id="out-of-the-box-mlc-llm-solutions">Out of the Box MLC LLM Solutions</h4>
+<ul>
+<li>Some pre-quantized model weights are already available through <a href="https://huggingface.co/mlc-ai" target="_blank" rel="noopener">MLC AI&rsquo;s HuggingFace account</a>. Meaning, you don&rsquo;t have to go through the quantization step yourself.</li>
+<li>If you want to quantize a new model, then there&rsquo;s a little more work involved.
+<ul>
+<li>MLC supports quantization of certain model types out of the box. So, all you have to do is <a href="https://llm.mlc.ai/docs/get_started/introduction.html#id8" target="_blank" rel="noopener">run a few simple commands</a>.
+<ul>
+<li>Currently, the following models are supported:</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="custom-solutions">Custom Solutions</h4>
+<ul>
+<li>If you want to quantize an unsupported model type, you&rsquo;ll need to extend MLC LLM&rsquo;s source code. This involves inferring your target model&rsquo;s architecture from its source <code>config.json</code> file <a href="https://huggingface.co" target="_blank" rel="noopener">on HuggingFace</a> and wrapping its original Python definition (e.g., from <a href="https://pypi.org/project/transformers/" target="_blank" rel="noopener">the <code>transformers</code> Python library</a>) with MLC LLM&rsquo;s wrappers. For more on how this works checkout the final blog post in this series: <strong>&lt;TODO: insert link + title.&gt;</strong></li>
+</ul>
+<h3 id="hardware-optimizations">Hardware Optimizations</h3>
+<p>The high-level Python code we use to define and train our models doesn&rsquo;t interact directly with a machine&rsquo;s underlying hardware. As we translate our Python code into lower-level representations, we can apply optimization techniques to get the most out of our compute resources.</p>
+<h4 id="just-in-time-model-compilation">Just in Time Model Compilation</h4>
+<p>The MLCEngine uses “JIT (Just-in-Time) model compilation”.</p>
+<ul>
+<li>JIT compiles a model at runtime (just before execution) to make it faster, while maintaining the flexibility of dynamic execution.</li>
+<li>JIT compilation is a hybrid approach that combines aspects of interpretation (executing code directly line-by-line, which is slower but flexible) and ahead-of-time (AOT) compilation (compiling code before execution, which is faster but less flexible). In JIT, code or models are dynamically translated into a more efficient representation during runtime.</li>
+<li>In machine learning, JIT model compilation typically refers to converting high-level model representations (e.g., a PyTorch or TensorFlow model) into highly optimized, low-level machine code that can run efficiently on specific hardware (like CPUs, GPUs, or TPUs)</li>
+<li>JIT steps are&hellip;
+<ol>
+<li>Tracing or Scripting: A high-level representation of the model is analyzed to understand its computation graph and operations.</li>
+<li>Optimization: The framework applies optimizations such as fusing operations, removing redundancies, or inlining functions to speed up execution.</li>
+<li>Low-level code generation: The optimized graph is compiled into low-level machine code suited for the target hardware</li>
+<li>Execution: The compiled model runs faster due to the precomputed optimizations</li>
+</ol>
+</li>
+</ul>
+<h4 id="mlc-llm-implementation">MLC LLM Implementation</h4>
+<p>Due to the computation demands of deep neural models, most deep learning frameworks have built-in JIT compilation extensions. There are also <a href="https://github.com/openxla/xla?tab=readme-ov-file" target="_blank" rel="noopener">open source projects like Accelerated Linear Algebra (XLA)</a> that offer <a href="https://openxla.org/xla" target="_blank" rel="noopener">cross-framework JIT support</a>. MLC LLM uses <a href="https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html" target="_blank" rel="noopener">PyTorch TorchScript</a> and <a href="https://tvm.apache.org" target="_blank" rel="noopener">Apache&rsquo;s Tensor Virtual Machine (TVM)</a>:</p>
+<ol>
+<li><strong>TorchScript</strong> converts our PyTorch models into a static computational graph that TVM can process.
+This makes PyTorch models compatible with TVM’s optimization and code generation pipeline.</li>
+<li><strong>TVM Backend.</strong>  Once the model is an TVM representation, multiple hardware optimization methods are implemented as the original Python code is translated into C++ for execution.
+<ul>
+<li><strong>Operation Fusion.</strong> Small operations (like element-wise additions or multiplications) are fused into larger, composite operations.
+<ul>
+<li>For example, instead of computing ReLU(x) followed by Add(x, y), the compiler might combine these into a single, fused kernel that avoids intermediate memory allocations.</li>
+</ul>
+</li>
+<li><strong>Memory Layout Optimization:.</strong> Memory access patterns are adjusted to align with the hardware’s cache structure.
+<ul>
+<li>For instance: GPUs prefer accessing data in coalesced blocks. Meanwhile, CPUs benefit from optimizing loop structures to avoid cache misses.</li>
+</ul>
+</li>
+<li><strong>Kernel Selection and Tuning.</strong> A &ldquo;kernel&rdquo; refers to a highly optimized function that executes a specific operation (e.g., matrix multiplication). TVM either selects pre-tuned kernels or performs auto-tuning to find the best-performing configuration for the target hardware.</li>
+</ul>
+</li>
+</ol>
+<p>This hardware optimization process allows us to enjoy similar model performance at a drastically reduced cost. However, it also results in harder to debug implementations and less flexible models. Meaning, you may spend longer troubleshooting your ML code or run into unexpected low-level errors due to changes in input sizes.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>In the past year, there have been incredible strides in getting high-performing LLMs so small and lightweight that they can effectively run on your personal devices. The combination of stronger hardware, efforts from the ML research community to offer the same performance for less parameters, and the adaption of existing ML optimization techniques for generative AI have made this possible.</p>
+<p>Meaning, the cost of getting started with foundation models is as low as ever. You just need an existing device and a bit of ML knowledge.</p>
+<h3 id="whats-next">What&rsquo;s next?</h3>
+<p>In my next blog post, I&rsquo;ll provide you with the theoretical knowledge you need to deploy an edge multi-modal chatbot. In the final blog post, I&rsquo;ll walkthrough my hands-on implementation.</p>
+
+    </div>
+
+    
+
+
+
+
+
+
+<div class="article-tags">
+  
+  <a class="badge badge-light" href="/tag/generative-ai/">Generative AI</a>
+  
+  <a class="badge badge-light" href="/tag/edge-ml/">Edge ML</a>
+  
+  <a class="badge badge-light" href="/tag/embedded-systems/">Embedded Systems</a>
+  
+</div>
+
+
+
+<div class="share-box" aria-hidden="true">
+  <ul class="share">
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="https://twitter.com/intent/tweet?url=http://localhost:1313/post/ml-compiler/&amp;text=Shrinking%20the%20Impossible%20%28Part%201%29:%20Optimizing%20Foundation%20Models%20for%20Edge%20Devices" target="_blank" rel="noopener" class="share-btn-twitter">
+          <i class="fab fa-twitter"></i>
+        </a>
+      </li>
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="https://www.facebook.com/sharer.php?u=http://localhost:1313/post/ml-compiler/&amp;t=Shrinking%20the%20Impossible%20%28Part%201%29:%20Optimizing%20Foundation%20Models%20for%20Edge%20Devices" target="_blank" rel="noopener" class="share-btn-facebook">
+          <i class="fab fa-facebook"></i>
+        </a>
+      </li>
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="mailto:?subject=Shrinking%20the%20Impossible%20%28Part%201%29:%20Optimizing%20Foundation%20Models%20for%20Edge%20Devices&amp;body=http://localhost:1313/post/ml-compiler/" target="_blank" rel="noopener" class="share-btn-email">
+          <i class="fas fa-envelope"></i>
+        </a>
+      </li>
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="https://www.linkedin.com/shareArticle?url=http://localhost:1313/post/ml-compiler/&amp;title=Shrinking%20the%20Impossible%20%28Part%201%29:%20Optimizing%20Foundation%20Models%20for%20Edge%20Devices" target="_blank" rel="noopener" class="share-btn-linkedin">
+          <i class="fab fa-linkedin-in"></i>
+        </a>
+      </li>
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="whatsapp://send?text=Shrinking%20the%20Impossible%20%28Part%201%29:%20Optimizing%20Foundation%20Models%20for%20Edge%20Devices%20http://localhost:1313/post/ml-compiler/" target="_blank" rel="noopener" class="share-btn-whatsapp">
+          <i class="fab fa-whatsapp"></i>
+        </a>
+      </li>
+    
+      
+      
+      
+        
+      
+      
+      
+      <li>
+        <a href="https://service.weibo.com/share/share.php?url=http://localhost:1313/post/ml-compiler/&amp;title=Shrinking%20the%20Impossible%20%28Part%201%29:%20Optimizing%20Foundation%20Models%20for%20Edge%20Devices" target="_blank" rel="noopener" class="share-btn-weibo">
+          <i class="fab fa-weibo"></i>
+        </a>
+      </li>
+    
+  </ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+
+
+
+  
+  
+  
+    
+  
+  
+  
+  <div class="media author-card content-widget-hr">
+    
+      
+      <a href="http://localhost:1313/"><img class="avatar mr-3 avatar-circle" src="/authors/admin/avatar_huc41288cec43c79590afb2ef028d6600d_3820530_270x270_fill_q98_lanczos_center.jpg" alt="Bella Nicholson"></a>
+    
+
+    <div class="media-body">
+      <h5 class="card-title"><a href="http://localhost:1313/">Bella Nicholson</a></h5>
+      <h6 class="card-subtitle">Machine Learning Engineer</h6>
+      
+      <ul class="network-icon" aria-hidden="true">
+  
+    
+    
+    
+      
+    
+    
+    
+    
+    
+      
+    
+    <li>
+      <a href="https://github.com/bellanich" target="_blank" rel="noopener">
+        <i class="fab fa-github"></i>
+      </a>
+    </li>
+  
+    
+    
+    
+      
+    
+    
+    
+    
+    
+      
+    
+    <li>
+      <a href="https://www.linkedin.com/in/bella-nicholson/" target="_blank" rel="noopener">
+        <i class="fab fa-linkedin"></i>
+      </a>
+    </li>
+  
+    
+    
+    
+      
+    
+    
+    
+    
+    
+    <li>
+      <a href="mailto:bellanich.software@gmail.com" >
+        <i class="far fa-envelope"></i>
+      </a>
+    </li>
+  
+</ul>
+
+    </div>
+  </div>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <div class="article-widget content-widget-hr">
+    <h3>Related</h3>
+    <ul>
+      
+      <li><a href="/post/vision-encoders/">Shrinking the Impossible (Part 1): Optimizing Foundation Models for Edge Devices</a></li>
+      
+    </ul>
+  </div>
+  
+
+
+
+
+
+  </div>
+</article>
+  </div>
+
+  <div class="page-footer">
+    
+    
+    <div class="container">
+      <footer class="site-footer">
+  
+
+  <p class="powered-by">
+    
+  </p>
+
+  
+  
+
+
+
+
+
+
+  <p class="powered-by">
+    
+    
+    
+    Published with
+    <a href="https://wowchemy.com/?utm_campaign=poweredby" target="_blank" rel="noopener">Wowchemy</a>  —
+    the free, <a href="https://github.com/wowchemy/wowchemy-hugo-modules" target="_blank" rel="noopener">
+    open source</a> website builder that empowers creators.
+    
+  </p>
+</footer>
+
+    </div>
+    
+  </div>
+
+  
+<div id="modal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Cite</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <pre><code class="tex hljs"></code></pre>
+      </div>
+      <div class="modal-footer">
+        <a class="btn btn-outline-primary my-1 js-copy-cite" href="#" target="_blank">
+          <i class="fas fa-copy"></i> Copy
+        </a>
+        <a class="btn btn-outline-primary my-1 js-download-cite" href="#" target="_blank">
+          <i class="fas fa-download"></i> Download
+        </a>
+        <div id="modal-error"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+      
+
+    
+    
+    
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+
+      
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.imagesloaded/4.1.4/imagesloaded.pkgd.min.js" integrity="sha256-lqvxZrPLtfffUl2G/e7szqSvPBILGbwmsGE1MKlOi0Q=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.isotope/3.0.6/isotope.pkgd.min.js" integrity="sha256-CBrpuqrMhXwcLLUd5tvQ4euBHCdh7wGlDfNz8vbu/iI=" crossorigin="anonymous"></script>
+      
+
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js" integrity="sha256-yt2kYMy0w8AbtF89WXb2P1rfjcP/HTHLT7097U8Y5b8=" crossorigin="anonymous"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/instant.page/5.1.0/instantpage.min.js" integrity="sha512-1+qUtKoh9XZW7j+6LhRMAyOrgSQKenQ4mluTR+cvxXjP1Z54RxZuzstR/H9kgPXQsVB8IW7DMDFUJpzLjvhGSQ==" crossorigin="anonymous"></script>
+
+      
+
+      
+        
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.2.0/highlight.min.js" integrity="sha512-TDKKr+IvoqZnPzc3l35hdjpHD0m+b2EC2SrLEgKDRWpxf2rFCxemkgvJ5kfU48ip+Y+m2XVKyOCD85ybtlZDmw==" crossorigin="anonymous"></script>
+        
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.2.0/languages/r.min.js"></script>
+        
+      
+
+    
+
+    
+    
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.min.js" integrity="sha512-SeiQaaDh73yrb56sTW/RgVdi/mMqNeM2oBwubFHagc5BkixSpP1fvqF47mKzPGWYSSy4RwbBunrJBQ4Co8fRWA==" crossorigin="anonymous"></script>
+    
+
+    
+    
+    <script>const code_highlighting = true;</script>
+    
+
+    
+    
+    
+    
+    
+    
+    <script>
+      const search_config = {"indexURI":"/index.json","minLength":1,"threshold":0.3};
+      const i18n = {"no_results":"No results found","placeholder":"Search...","results":"results found"};
+      const content_type = {
+        'post': "Posts",
+        'project': "Projects",
+        'publication' : "Publications",
+        'event' : "Events",
+        'slides' : "Slides"
+        };
+    </script>
+    
+
+    
+    
+
+    
+    
+    <script id="search-hit-fuse-template" type="text/x-template">
+      <div class="search-hit" id="summary-{{key}}">
+      <div class="search-hit-content">
+        <div class="search-hit-name">
+          <a href="{{relpermalink}}">{{title}}</a>
+          <div class="article-metadata search-hit-type">{{type}}</div>
+          <p class="search-hit-description">{{snippet}}</p>
+        </div>
+      </div>
+      </div>
+    </script>
+    
+
+    
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/3.2.1/fuse.min.js" integrity="sha256-VzgmKYmhsGNNN4Ph1kMW+BjoYJM2jV5i4IlFoeZA9XI=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mark.js/8.11.1/jquery.mark.min.js" integrity="sha256-4HLtjeVgH0eIB3aZ9mLYF6E8oU5chNdjU6p6rrXpl9U=" crossorigin="anonymous"></script>
+    
+
+    
+    
+
+    
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+      
+      
+    
+    
+    <script src="/js/wowchemy.min.js"></script>
+
+    
+
+
+
+
+
+
+</body>
+</html>
