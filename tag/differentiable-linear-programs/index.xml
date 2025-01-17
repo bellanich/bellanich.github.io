@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Differentiable Linear Programs | Bella Nicholson</title>
+    <link>http://localhost:1313/tag/differentiable-linear-programs/</link>
+      <atom:link href="http://localhost:1313/tag/differentiable-linear-programs/index.xml" rel="self" type="application/rss+xml" />
+    <description>Differentiable Linear Programs</description>
+    <generator>Wowchemy (https://wowchemy.com)</generator><language>en-us</language><lastBuildDate>Mon, 20 Feb 2023 00:00:00 +0000</lastBuildDate>
+    <image>
+      <url>http://localhost:1313/images/icon_hu3751bf80caad288f7f32134a8ecae786_4078_512x512_fill_lanczos_center_3.png</url>
+      <title>Differentiable Linear Programs</title>
+      <link>http://localhost:1313/tag/differentiable-linear-programs/</link>
+    </image>
+    
+    <item>
+      <title>Differentiable Mathematical Programming for Object-Centric Representation Learning</title>
+      <link>http://localhost:1313/publication/pervez-2022-differentiable/</link>
+      <pubDate>Mon, 20 Feb 2023 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/publication/pervez-2022-differentiable/</guid>
+      <description></description>
+    </item>
+    
+  </channel>
+</rss>

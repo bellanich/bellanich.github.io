@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Dialogue Systems | Bella Nicholson</title>
+    <link>http://localhost:1313/tag/dialogue-systems/</link>
+      <atom:link href="http://localhost:1313/tag/dialogue-systems/index.xml" rel="self" type="application/rss+xml" />
+    <description>Dialogue Systems</description>
+    <generator>Wowchemy (https://wowchemy.com)</generator><language>en-us</language><lastBuildDate>Sat, 01 Aug 2020 00:00:00 +0000</lastBuildDate>
+    <image>
+      <url>http://localhost:1313/images/icon_hu3751bf80caad288f7f32134a8ecae786_4078_512x512_fill_lanczos_center_3.png</url>
+      <title>Dialogue Systems</title>
+      <link>http://localhost:1313/tag/dialogue-systems/</link>
+    </image>
+    
+    <item>
+      <title>Simultaneously Improving Utility and User Experience in Task-oriented Dialogue Systems</title>
+      <link>http://localhost:1313/publication/lippe-2022-diversifying/</link>
+      <pubDate>Sat, 01 Aug 2020 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/publication/lippe-2022-diversifying/</guid>
+      <description></description>
+    </item>
+    
+  </channel>
+</rss>
