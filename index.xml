@@ -35,7 +35,14 @@ The Neural Information Processing Systems (NeurIPS) 2024 Conference took place a
 At 800M parameters, the &lt;a href="https://llava-vl.github.io/blog/2024-08-05-llava-onevision/">LLaVA-OneVision Qwen2 0.5B&lt;/a> is ideal for edge deployment but it struggles with complex user instructions. Thus, I used Google’s ultra-efficient &lt;a href="https://huggingface.co/google/gemma-2b">Gemma 2B model&lt;/a> as a fallback.
 &lt;/figcaption>
 &lt;/figure>
-&lt;p>For the full story, including technical details, check out &lt;a href="../../post/edge-llm-mlc/">my corresponding blog series&lt;/a>. The source code is also available for your viewing pleasure on &lt;a href="https://github.com/bellanich/pocket-llm" target="_blank" rel="noopener">GitHub&lt;/a>. Consider it your guide to shrinking impossibly large LLMs down to something edge device-sized.&lt;/p></description></item><item><title>Shrinking the Impossible (Part 4): Deploying My Own Pocket-Sized Multi-Modal Large Language Model</title><link>https://bellanich.github.io/post/edge-llm-app/</link><pubDate>Mon, 02 Dec 2024 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-llm-app/</guid><description>&lt;!-- Welcome 👋 -->
+&lt;p>For the full story, including technical details, check out my corresponding &lt;strong>&amp;ldquo;Shrinking the Impossible&amp;rdquo; blog series&lt;/strong>:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="../../post/edge-llm-mlc/">Part 1: Optimizing Foundation Models for Edge Devices with MLC&lt;/a>&lt;/li>
+&lt;li>&lt;a href="../../post/edge-llm-vision-encoders/">Part 2: Teaching Chatbots to See with LLaVA, CLIP, and SigLIP&lt;/a>&lt;/li>
+&lt;li>&lt;a href="../../post/edge-llm-embed-llava/">Part 3: Embedding a Custom-Defined LLaVA-OneVision Model with MLC&lt;/a>&lt;/li>
+&lt;li>&lt;a href="../../post/edge-llm-app/">Part 4: Deploying My Own Pocket-Sized Multi-Modal Large Language Model&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>The source code is also available for your viewing pleasure on &lt;a href="https://github.com/bellanich/pocket-llm" target="_blank" rel="noopener">GitHub&lt;/a>. Consider it your guide to shrinking impossibly large LLMs down to something that fits inside your pocket.&lt;/p></description></item><item><title>Shrinking the Impossible (Part 4): Deploying My Own Pocket-Sized Multi-Modal Large Language Model</title><link>https://bellanich.github.io/post/edge-llm-app/</link><pubDate>Mon, 02 Dec 2024 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-llm-app/</guid><description>&lt;!-- Welcome 👋 -->
 &lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
 &lt;ul>
 &lt;li>&lt;a href="#table-of-contents">Table of Contents&lt;/a>&lt;/li>
