@@ -606,9 +606,9 @@ At 800M parameters, the &lt;a href="https://llava-vl.github.io/blog/2024-08-05-l
 &lt;ul>
 &lt;li>&lt;a href="#clip">CLIP&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#siglip">SigLIP&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#inference">Inference&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;li>&lt;a href="#inference">Inference&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#machine-learning-compiler-implementation">Machine Learning Compiler Implementation&lt;/a>
@@ -685,7 +685,7 @@ Most LLaVA models are named after their base transformer architectures, but this
 &lt;h4 id="siglip">SigLIP&lt;/h4>
 &lt;p>The &lt;a href="https://arxiv.org/abs/2303.15343" target="_blank" rel="noopener">Sigmoid Loss for Language Image Pre-Training (SigLIP)&lt;/a> replaces the softmax in CLIP with a sigmoid loss, which is applied element-wise to the dot products between the image and text representations. The loss objective is then closer to standard &lt;em>predictive learning&lt;/em> with binary cross entropy, training the positive pairs to be $1$ while negative ones are pushed closer to $0$. This allows the model to train on a large batch size without the need for full-batch softmax computation, making it more efficient and scalable.&lt;/p>
 &lt;p>SigLIP has been shown to achieve similar or even better performance to CLIP, in particular for smaller datasets of image-caption pairs. Furthermore, SigLIP is more computationally efficient at scale, making it a popular choice for training strong vision encoders in multi-modal models.&lt;/p>
-&lt;h4 id="inference">Inference&lt;/h4>
+&lt;h3 id="inference">Inference&lt;/h3>
 &lt;p>Once the vision encoder is trained, we can use it to generate embeddings for images. However, both CLIP and SigLIP train single-vector representations, meaning that the image is represented by a single vector. This is not ideal for multi-modal models, as we want to generate a sequence of embeddings that can be fed into the text decoder. Furthermore, a single vector representation may not capture the full content of the image.&lt;/p>
 &lt;p>To address this, we can use the internal representations of the Vision Encoder, which is commonly a Vision Transformer, to extract a sequence of embeddings for the image. This allows us to capture a more detailed representation of the image, which can be used by the text decoder to generate more accurate and detailed text descriptions. This is a key aspect of the LLaVA model family, which combines the power of Vision Transformers with Large Language Models to generate human-like text based on images.&lt;/p>
 &lt;p>In &lt;a href="../edge-llm-embed-llava/">the next blogpost&lt;/a>, we will see that there are actually several variations on how a Vision Transformer can be implemented in the CLIP and SigLIP frameworks (e.g. using a separate class embedding, pooling, etc.). These variations can have a significant impact on the performance of the final LLaVA model and require adjusting the model architecture accordingly. Hence, it is important to carefully consider them when implementing your own LLaVA model.&lt;/p>
