@@ -1,4 +1,749 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Article | Bella Nicholson</title><link>https://bellanich.github.io/tag/article/</link><atom:link href="https://bellanich.github.io/tag/article/index.xml" rel="self" type="application/rss+xml"/><description>Article</description><generator>Wowchemy (https://wowchemy.com)</generator><language>en-us</language><lastBuildDate>Mon, 02 Dec 2024 00:00:00 +0000</lastBuildDate><image><url>https://bellanich.github.io/images/icon_huc1af03d399f8074958ea0ac44dc20f74_179729_512x512_fill_lanczos_center_3.png</url><title>Article</title><link>https://bellanich.github.io/tag/article/</link></image><item><title>Shrinking the Impossible (Part 4): Deploying My Own Pocket-Sized Multi-Modal Large Language Model</title><link>https://bellanich.github.io/post/edge-llm-app/</link><pubDate>Mon, 02 Dec 2024 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-llm-app/</guid><description>&lt;!-- Welcome 👋 -->
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Article | Bella Nicholson</title><link>https://bellanich.github.io/tag/article/</link><atom:link href="https://bellanich.github.io/tag/article/index.xml" rel="self" type="application/rss+xml"/><description>Article</description><generator>Wowchemy (https://wowchemy.com)</generator><language>en-us</language><lastBuildDate>Wed, 26 Nov 2025 00:00:00 +0000</lastBuildDate><image><url>https://bellanich.github.io/images/icon_huc1af03d399f8074958ea0ac44dc20f74_179729_512x512_fill_lanczos_center_3.png</url><title>Article</title><link>https://bellanich.github.io/tag/article/</link></image><item><title>Frames Per Second (Part 3): Turning a Tiny Diffusion Model into a Traveling Photobooth</title><link>https://bellanich.github.io/post/edge-diffusion-3/</link><pubDate>Wed, 26 Nov 2025 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-diffusion-3/</guid><description>&lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
+&lt;!-- - [Table of Contents](#table-of-contents) -->
+&lt;ul>
+&lt;li>&lt;a href="#table-of-contents">Table of Contents&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#introduction">Introduction&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#a-three-stage-approach">A Three-Stage Approach&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#stage-1-person-segmentation-1s">Stage 1: Person Segmentation (~1s)&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#stage-2-conditional-background-generation">Stage 2: Conditional Background Generation&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#prompt-engineering">Prompt Engineering&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#thread-safety-and-process-survival">Thread Safety and Process Survival&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#stage-3-compositing--style-filters-1s">Stage 3: Compositing &amp;amp; Style Filters (&amp;lt;1s)&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#lessons-from-the-edge">Lessons from the Edge&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#1-at-small-scales-hardware-aware-wins">1. At small scales, hardware-aware wins&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#2-if-your-prompt-loses-focus-stable-diffusion-will-too">2. If your prompt loses focus, Stable Diffusion will too&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#3-architecture-solves-capability-gaps">3. Architecture solves capability gaps&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#conclusion">Conclusion&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#future-directions">Future Directions&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#the-joy-of-building-small">The Joy of Building Small&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>I&amp;rsquo;m on a personal mission to recreate the Nano Banana experience on the edge&amp;hellip;or at least get as close as physics and open-source tools will allow. In &lt;a href="../edge-diffusion-1/">my first blogpost&lt;/a>, I explained why Apple&amp;rsquo;s CoreML Stable Diffusion (SD) is my best bet. In &lt;a href="../edge-diffusion-2/">the last post&lt;/a>, I broke down how Apple squeezed a 6GB model down to 1.5GB while still delivering sub-10-second generation on iOS.&lt;/p>
+&lt;p>But there&amp;rsquo;s catch: Apple’s implementation breaks my use case. If I try a simple img2img portrait edit, the subject&amp;rsquo;s identity collapses. As seen in Figure 1, once I make the denoising strength high enough to change the background, my subject morphs into a loosely related stranger who just happens to be wearing a similar outfit.&lt;/p>
+&lt;figure>
+&lt;img src="images/failed-portrait-edit.png" style="width: 100%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 1.&lt;/strong> Apple's CoreML Stable Diffusion models fails to maintain character consistency. We attempt to transport the lovely Sabrina Carpenter from the 2025 MTV Video Music Awards (&lt;a href="https://www.gettyimages.com/detail/news-photo/sabrina-carpenter-winner-of-the-the-best-album-award-for-news-photo/2233699406?">image credit&lt;/a>) to a festive holiday backdrop. The background and prop swaps are convincing, but the resulting blonde is definitely not Sabrina.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>If I rely solely on Apple&amp;rsquo;s CoreML Stable Diffusion model, I run into an impossible trade-off:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Low strength (0.3-0.5):&lt;/strong> Character consistency is maintained, but the background barely changes&lt;/li>
+&lt;li>&lt;strong>High strength (0.7-0.9):&lt;/strong> Background transforms perfectly to align with the given text prompt; however, the person pictures just becomes unrecognizable.&lt;/li>
+&lt;/ul>
+&lt;p>This is hardly a surprise, since &lt;strong>(a)&lt;/strong> the original Nano Banana model (released in August 2025) broke the internet for its ability to maintain character consistency and &lt;strong>(b)&lt;/strong> we&amp;rsquo;re working with a hyper-optimized version of a 2022 model. The problem with our approach is that Stable Diffusion can&amp;rsquo;t distinguish between &amp;ldquo;keep this&amp;rdquo; and &amp;ldquo;change that&amp;rdquo;. It&amp;rsquo;s trying to equally transform each pixel. Hence, it&amp;rsquo;s trying to do two conflicting jobs at once: preserve user identity &lt;em>and&lt;/em> dramatically transform the background.&lt;/p>
+&lt;p>The lesson? Stop asking Stable Diffusion to multitask. I need to handle identity preservation and scene transformation separately. This blogpost shows how to do this on a shoestring compute budget.&lt;/p>
+&lt;h2 id="a-three-stage-approach">A Three-Stage Approach&lt;/h2>
+&lt;p>I’m a fan of simple solutions, especially under a tight runtime budget. So, I started with the simplest move possible: I isolated the subject and focused Stable Diffusion&amp;rsquo;s efforts on background generation. This created a lightweight, three-stage pipeline:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>Segment.&lt;/strong> I used &lt;a href="https://developer.apple.com/documentation/vision" target="_blank" rel="noopener">Apple&amp;rsquo;s Vision framework&lt;/a> to perform person segmentation. This process yields &lt;strong>(a)&lt;/strong> a cutout of the person with transparent background, and &lt;strong>(b)&lt;/strong> an inverted mask marking which pixels need regeneration.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Generate.&lt;/strong> I feed the inverted mask and text prompt into Stable Diffusion&amp;rsquo;s img2img pipeline. SD regenerates only the masked background regions while leaving the subject&amp;rsquo;s pixels untouched.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Composite.&lt;/strong> I then layer the original subject cutout over the newly generated background. In order to deliver a photo booth-like user experience, I also added optional Instagram-style filters to make the final outputs more shareable.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;figure>
+&lt;img src="images/pipeline-diagram.png" style="width: 35%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 2. &lt;/strong> My hyper-optimized three-stage pipeline uses &lt;a href="https://github.com/apple/ml-stable-diffusion">Apple's CoreML Stable Diffusion model&lt;/a> for on-device conditional image generation. By isolating the heavy diffusion step to background regeneration, the system preserves identity consistency despite the tiny model's quality constraints.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>The final result is a lean, fully on-device conditional image generation pipeline that runs within an average of ~27 seconds. This puts me safely below my 60 second limit.&lt;/p>
+&lt;p>Now, let&amp;rsquo;s dive into the details. To demonstrate each stage&amp;rsquo;s output, we&amp;rsquo;ll successfully transport Sabrina Carpenter from the concert stage to a Winter Wonderland.&lt;/p>
+&lt;figure>
+&lt;img src="images/original_photo.jpg" style="width: 100%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 3. &lt;/strong> Let's assume this concert photo of Sabrina Carpenter, performing onstage during the 2024 Coachella Valley Music and Arts Festival, as our running example. Our goal is to transport her to a Winter Wonderland (&lt;a href="https://www.gettyimages.com/detail/news-photo/sabrina-carpenter-performs-at-the-coachella-stage-during-news-photo/2149329158">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;h3 id="stage-1-person-segmentation-1s">Stage 1: Person Segmentation (~1s)&lt;/h3>
+&lt;p>First, I extract the subject from the background using Apple&amp;rsquo;s &lt;a href="https://developer.apple.com/documentation/vision" target="_blank" rel="noopener">Vision framework&lt;/a>, specifically the &lt;a href="https://developer.apple.com/documentation/vision/vngeneratepersonsegmentationrequest" target="_blank" rel="noopener">&lt;code>VNGeneratePersonSegmentationRequest&lt;/code>&lt;/a> API. This built-in segmentation model ships with iOS and is already optimized for the Neural Engine.&lt;/p>
+&lt;p>Deploying Apple&amp;rsquo;s off the shelf solution let&amp;rsquo;s me focus on core problem without getting distracted by additional deployment overhead. Apple has already hyper-optimized this image segmentation model for their Apple Neural Engine (ANE) hardware accelerator. Meaning, even when I set &lt;a href="https://developer.apple.com/documentation/vision/vngeneratepersonsegmentationrequest/qualitylevel/accurate" target="_blank" rel="noopener">the preferred quality level to high&lt;/a>, the segmentation model still returns a result within ~1 second. I&amp;rsquo;ve alloted about ~67% of my inference time budget to Stable Diffusion (40 seconds) and the remainder to everything else. Keeping the segmentation step leaves me with plenty of breathing room.&lt;/p>
+&lt;p>Figure 3 shows an example of this model&amp;rsquo;s outputs, where its separates the subject from her surroundings.&lt;/p>
+&lt;figure style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+&lt;div style="display: flex; justify-content: center; gap: 10px; align-items: flex-end;">
+&lt;div style="width: 45%; display: flex; flex-direction: column;">
+&lt;img src="images/1_isolated_subject.png" style="width: 100%; height: auto; max-height: 300px; object-fit: contain;">
+&lt;div style="margin-top: 5px; font-size: 0.75em;">(a)&lt;/div>
+&lt;/div>
+&lt;div style="width: 45%; display: flex; flex-direction: column;">
+&lt;img src="images/1_background_mask.png" style="width: 100%; height: auto; max-height: 300px; object-fit: contain;">
+&lt;div style="margin-top: 5px; font-size: 0.75em;">(b)&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;figcaption style="margin-top: 15px;">
+&lt;strong>Figure 4.&lt;/strong> Sample person segmentation results. &lt;strong>(a)&lt;/strong> The subject is now isolated against an alpha transparency background. &lt;strong>(b)&lt;/strong> A background mask for subsequent conditional image generation, where only white pixels will be repainted.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Now, let’s whisk Sabrina Carpenter off the Coachella stage and drop her straight into a glittery Winter Wonderland for a festive, snow-dusted performance.&lt;/p>
+&lt;h3 id="stage-2-conditional-background-generation">Stage 2: Conditional Background Generation&lt;/h3>
+&lt;p>This step is where the magic happens — and where most of my runtime budget disappears. I feed the background mask from Stage 1 (see Figure 4C) and the text prompt into the Stable Diffusion. The mask acts like a stencil: white regions get regenerated, black pixels (the subject) stay untouched. Everything gets resized to 512×512 before inference, since &lt;a href="https://arxiv.org/abs/2112.10752" target="_blank" rel="noopener">that’s SD’s native training resolution&lt;/a>.&lt;/p>
+&lt;p>For denoising strength, I stayed within &lt;a href="https://huggingface.co/docs/diffusers/en/using-diffusers/write_your_own_pipeline#classifier-free-guidance" target="_blank" rel="noopener">the commonly recommended 0.65–0.85 range&lt;/a>: low enough to preserve subject boundaries, high enough to meaningfully transform the background. I used the standard &lt;a href="../edge-diffusion-2/#scheduler-optimization">25 DPM-Solver steps&lt;/a> and set the default guidance scale to 7.5.&lt;/p>
+&lt;h4 id="prompt-engineering">Prompt Engineering&lt;/h4>
+&lt;p>Prompt engineering took longer than I&amp;rsquo;d like to admit. I wanted to create a visually striking background, so I started with maximalist prompts (&lt;code>&amp;quot;A winter wonderland with snow-covered pine trees, twinkling fairy lights, ice sculptures, frosted windows...&amp;quot;&lt;/code>). CoreML Stable Diffusion got overwhelmed and returned incoherent mush. Then I went ultra-minimal (&lt;code>&amp;quot;A winter scene&amp;quot;&lt;/code>) and got a bleak, featureless white void.&lt;/p>
+&lt;p>The sweet spot was photography-style phrasing with a few concrete details, like &lt;code>&amp;quot;A glittery winter wonderland with snow, twinkling lights, warm glow&amp;quot;&lt;/code>. Enough direction, not enough to overwhelm. Along the way, I learned:&lt;/p>
+&lt;ul>
+&lt;li>Stable Diffusion trims anything past ~75 tokens&lt;/li>
+&lt;li>Evocative scene vibes are better than itemized lists&lt;/li>
+&lt;li>Lighting cues, like “warm orange glow” vs. “blue hour twilight”, can set the entire mood&lt;/li>
+&lt;/ul>
+&lt;p>Now, let’s see what all that work actually produces. Here’s the raw background Stable Diffusion generated before the subject gets composited back in (Figure 5).&lt;/p>
+&lt;figure>
+&lt;img src="images/2_generated_background.png" style="width: 50%; height: auto;">
+&lt;figcaption>
+&lt;strong>Figure 5.&lt;/strong> Stable Diffusion’s raw output for the prompt “outside in magical winter village at blue hour lighting, charming snow-covered cottage with glowing windows.” The scene is coherent, though not perfect, details like the opaque “window/door” remain ambiguous.
+&lt;/figcaption>
+&lt;/figure>
+&lt;h4 id="thread-safety-and-process-survival">Thread Safety and Process Survival&lt;/h4>
+&lt;p>Running a Stable Diffusion pipeline on-device means juggling two hard problems:&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Thread safety.&lt;/strong> Segmentation, SD inference, and UI updates all touch the same shared state, creating the perfect incubator for race conditions.&lt;/li>
+&lt;li>&lt;strong>Process survival.&lt;/strong> I need to keep the UI responsive while SD runs for ~27 seconds in the background. At the same time, iOS locks the screen after 30 seconds of inactivity and suspends the app, which kills image generation.&lt;/li>
+&lt;/ol>
+&lt;p>In short, I had to choose between concurrency or chaos. I enabled Swift 6&amp;rsquo;s strict concurrency to catch threading bugs at compile time rather than dealing with surprises in production. With strict concurrency, everything needs explicit actor boundaries. The UI state (&lt;code>@Published&lt;/code> properties, view model updates) runs on the main thread, while Stable Diffusion inference runs on background threads to prevent freezing the entire app.&lt;/p>
+&lt;pre>&lt;code class="language-swift">// Simplified coordinator pattern
+func generateBackground() {
+isProcessing = true // MainActor UI update
+Task.detached { // Background thread for heavy work
+let result = await pipeline.generate(...)
+await MainActor.run { // Back to MainActor for UI
+self.outputImage = result
+self.isProcessing = false
+}
+}
+}
+&lt;/code>&lt;/pre>
+&lt;p style="text-align: center; font-size: 0.75em; margin-top: 0.5em; color: #66;">
+&lt;strong>Figure 6.&lt;/strong> Actor coordination pattern in Swift. The thread hopping pattern runs inference on a background thread, then returns to the main thread (&lt;code>@MainActor&lt;/code>) for UI updates.
+&lt;/p>
+&lt;p>I also registered Stable Diffusion as a background task to ensure image generation continues if the screen locks. Without it, we&amp;rsquo;d be left with half a cottage and no Winter Wonderland magic. Once the final image is composited, the background task is released.&lt;/p>
+&lt;h3 id="stage-3-compositing--style-filters-1s">Stage 3: Compositing &amp;amp; Style Filters (&amp;lt;1s)&lt;/h3>
+&lt;p>With the background generated, I&amp;rsquo;m ready to layer the isolated subject (Fig. 4a) into the new scene. I use &lt;a href="https://developer.apple.com/documentation/coregraphics" target="_blank" rel="noopener">Core Graphics&lt;/a> Apple&amp;rsquo;s low-level 2D rendering framework, to composite these two layers together. This process is fast, clean, and basically free in terms of runtime.&lt;/p>
+&lt;figure>
+&lt;img src="images/3_original_output.jpg" style="width: 100%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 7. &lt;/strong> Let's assume this concert photo of Sabrina Carpenter, performing onstage during the 67th Annual GRAMMY Awards, as our running example. Our goal is to transport her to a Winter Wonderland (&lt;a href="https://github.com/apple/ml-stable-diffusion">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Originally, I planned to chain multiple Stable Diffusion generations together to create a flexible style transfer experience, allowing the user to further personalize their images, but each extra pass incurs another ~25 seconds. No one is going to wait 2+ minutes to try on a different look.&lt;/p>
+&lt;p>So I switched to &lt;a href="https://developer.apple.com/documentation/coreimage" target="_blank" rel="noopener">Core Image filters&lt;/a>, which run instantly. I added four curated styles plus an intensity slider, letting users experiment in real time, turning the whole system into a fully on-device, pocket-sized photobooth. Figure 8 highlights a few results, any of which could slide neatly onto Sabrina’s holiday-themed merch.&lt;/p>
+&lt;figure style="display: flex; flex-direction: column; align-items: center; margin: 2em 0;">
+&lt;div style="display: flex; flex-direction: column; gap: 15px; width: 100%;">
+&lt;!-- Row 1: Original + Pop Art -->
+&lt;div style="display: flex; justify-content: center; gap: 10px;">
+&lt;div style="width: 45%;">
+&lt;img src="images/3_vintage_output.jpg" style="width: 100%; height: auto;">
+&lt;div style="margin-top: 5px; font-size: 0.7em; text-align: center;">(a) Vintage &lt;/div>
+&lt;/div>
+&lt;div style="width: 45%;">
+&lt;img src="images/3_pop_art_output.jpg" style="width: 100%; height: auto;">
+&lt;div style="margin-top: 5px; font-size: 0.7em; text-align: center;">(b) Pop Art&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;!-- Row 2: Posterize + Mosaic -->
+&lt;div style="display: flex; justify-content: center; gap: 10px;">
+&lt;div style="width: 45%;">
+&lt;img src="images/3_posterize_output.jpg" style="width: 100%; height: auto;">
+&lt;div style="margin-top: 5px; font-size: 0.7em; text-align: center;">(c) Posterize&lt;/div>
+&lt;/div>
+&lt;div style="width: 45%;">
+&lt;img src="images/3_mosiac_output.jpg" style="width: 100%; height: auto;">
+&lt;div style="margin-top: 5px; font-size: 0.7em; text-align: center;">(d) Mosaic&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;figcaption style="margin-top: 1em; text-align: center;">
+&lt;strong>Figure 8.&lt;/strong> The same composited image with different Core Image filter styles applied. Each filter applies instantly (&amp;lt;1s) with adjustable intensity.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Of course, this system isn’t a one-hit wonder. Figure 9 shows the same pipeline dropping Sabrina underneath a Christmas tree, into San Diego’s Balboa Park, and even into a groovy reimagining of La Jolla Cove, proving that this pocket-sized photobooth travels just as well as she does.&lt;/p>
+&lt;figure style="margin: 2em 0;">
+&lt;div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+&lt;div>
+&lt;img src="images/3_gifts.PNG" style="width: 100%; height: 200px; object-fit: cover; margin-bottom: 3px;">
+&lt;img src="images/3_gifts_sabrina.JPG" style="width: 100%; height: 200px; object-fit: cover;">
+&lt;div style="margin-top: 3px; font-size: 0.75em; text-align: center;">(a) Gradient Gift Descent&lt;/div>
+&lt;/div>
+&lt;div>
+&lt;img src="images/3_balboa.PNG" style="width: 100%; height: 200px; object-fit: cover; margin-bottom: 3px;">
+&lt;img src="images/3_balboa_sabrina.JPG" style="width: 100%; height: 200px; object-fit: cover;">
+&lt;div style="margin-top: 3px; font-size: 0.75em; text-align: center;"> (b) Balboa Park&lt;/div>
+&lt;/div>
+&lt;div>
+&lt;img src="images/3_la_jolla.PNG" style="width: 100%; height: 200px; object-fit: cover; margin-bottom: 3px;">
+&lt;img src="images/3_la_jolla_sabrina.JPG" style="width: 100%; height: 200px; object-fit: cover;">
+&lt;div style="margin-top: 3px; font-size: 0.75em; text-align: center;">(c) La Jolla Cove&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;figcaption style="text-align: center; margin-top: 1em;">
+&lt;strong>Figure 9.&lt;/strong> Sabrina Carpenter, re-imagined in three different scenes. Show both the raw Stable Diffusion generated backgrounds (top) and the final composites (bottom).
+&lt;/figcaption>
+&lt;/figure>
+&lt;h2 id="lessons-from-the-edge">Lessons from the Edge&lt;/h2>
+&lt;p>When I started this project, I knew bringing the Nano Banana experience to mobile would be tough, but I just didn’t realize how tough. I learned four valuable lessons along the way:&lt;/p>
+&lt;h3 id="1-at-small-scales-hardware-aware-wins">1. At small scales, hardware-aware wins&lt;/h3>
+&lt;p>Users won’t accept bad images just because the model runs fast. Once we shrink diffusion, quality depends heavily on hardware we don’t control or fully understand. Apple’s vertical integration makes some optimizations look effortless, but replicating them from the outside is anything but.&lt;/p>
+&lt;h3 id="2-if-your-prompt-loses-focus-stable-diffusion-will-too">2. If your prompt loses focus, Stable Diffusion will too&lt;/h3>
+&lt;p>I learned quickly that mixing themes (e.g., Winter Wonderland + robots) just produces incoherent mush. Chaining prompts or tweaking denoising strength didn’t help either: high strength erased the scene, low strength lead to incoherent, blurry transformation.&lt;/p>
+&lt;p>Blending multiple semantic concepts is a completely different problem, one tackled by disentangled-control methods like &lt;a href="https://arxiv.org/abs/2302.05543" target="_blank" rel="noopener">ControlNet&lt;/a> and &lt;a href="https://arxiv.org/abs/2308.06721" target="_blank" rel="noopener">IP-Adapter&lt;/a>. But those techniques rely on extra conditioning modules that add hundreds of megabytes and several seconds of latency. That&amp;rsquo;s fine on a workstation, disastrous for a sub-30-second mobile experience.&lt;/p>
+&lt;h3 id="3-architecture-solves-capability-gaps">3. Architecture solves capability gaps&lt;/h3>
+&lt;p>Splitting the process into Segment → Generate → Composite avoided the pitfalls of an all-in-one model. Segmentation preserved identity, SD produced high-quality backgrounds, and fast filters enabled rapid style iteration. Even if on-device disentangled-control were possible, the gains for the end user would be minimal. The modular workflow already delivers strong speed and consistency. This model has its limitations, but good system design works around them.&lt;/p>
+&lt;p>Of course, as base model improves, so does the space for smarter systems built around its new limits.&lt;/p>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>I accomplished my original goal of building a Nano-Banana–style photobooth that runs entirely on-device. Along the way, I also ended up with a compact computer-vision playground ready for whatever comes next.&lt;/p>
+&lt;h3 id="future-directions">Future Directions&lt;/h3>
+&lt;p>From here, my options are boundless but they include: automating the tedious prompt engineering process using &lt;a href="https://arxiv.org/abs/2305.13301" target="_blank" rel="noopener">reinforcement learning techniques like DDPO&lt;/a>, trying to recreate some aspects of &lt;a href="https://arxiv.org/abs/2506.06802" target="_blank" rel="noopener">identity-preserving style transfer&lt;/a> on-device, or fine-tuning my tiny Stable Diffusion model with &lt;a href="https://huggingface.co/blog/lora" target="_blank" rel="noopener">LoRA adapters&lt;/a> so it knows why &lt;a href="https://www.npr.org/2025/09/10/nx-s1-5535826/sabrina-carpenter-mans-best-friend-charts" target="_blank" rel="noopener">Sabrina Carpenter is &amp;ldquo;Man&amp;rsquo;s Best Friend&amp;rdquo;&lt;/a>. I now have a solid foundation and free to explore what’s genuinely interesting.&lt;/p>
+&lt;h3 id="the-joy-of-building-small">The Joy of Building Small&lt;/h3>
+&lt;p>A GPU cluster would brute-force most of the problems I hit, edge constraints push me to invent better solutions. With tiny, local models, I skip cloud overhead, iterate faster, and avoid unwanted surprise bills. Starting at the bottom of &lt;a href="https://openai.com/index/scaling-laws-for-neural-language-models/" target="_blank" rel="noopener">the scale curve&lt;/a> is liberating: any capability I unlock here will only get stronger as the model scales. And in the end, the setup stays small, but the possibilities don’t.&lt;/p>
+&lt;p>I’m excited to keep iterating on this work. If you want to dig into the details, the full implementation is on &lt;a href="https://github.com/bellanich/pocket-diffusion" target="_blank" rel="noopener">GitHub&lt;/a>. Questions, feedback, or wild ideas? Drop a comment or reach out on &lt;a href="https://www.linkedin.com/in/bella-nicholson/" target="_blank" rel="noopener">LinkedIn&lt;/a>. I always enjoy meeting people working at the edge of what&amp;rsquo;s possible — on-device or in the cloud.&lt;/p></description></item><item><title>Frames Per Second (Part 2): Quantization, Kernels, and the Path to On-Device Diffusion</title><link>https://bellanich.github.io/post/edge-diffusion-2/</link><pubDate>Tue, 25 Nov 2025 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-diffusion-2/</guid><description>&lt;!-- Welcome 👋 -->
+&lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
+&lt;!-- - [Table of Contents](#table-of-contents) -->
+&lt;ul>
+&lt;li>&lt;a href="#table-of-contents">Table of Contents&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#introduction">Introduction&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#apples-optimization-strategy">Apple&amp;rsquo;s Optimization Strategy&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#model-compression">Model Compression&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#phase-1-quantization">Phase 1: Quantization&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#phase-2-palettization">Phase 2: Palettization&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#neural-engine-optimization">Neural Engine Optimization&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#model-chunking">Model Chunking&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#attention-variants">Attention Variants&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#1-the-original-attention-mechanism">1. The Original Attention Mechanism&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#2-split-einsum-attention">2. Split Einsum Attention&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#scheduler-optimization">Scheduler Optimization&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#conclusion">Conclusion&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#whats-next">What&amp;rsquo;s next?&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>After tackling text with &lt;a href="../../portfolio/edge-llm/">my edge multi-modal LLM project&lt;/a> last year, I&amp;rsquo;ve become fascinated with the image side of foundation models. The media frenzy ignited by &lt;a href="https://deepmind.google/models/gemini-image/" target="_blank" rel="noopener">Google DeepMind&amp;rsquo;s initial Nano Banana release&lt;/a> acts as a testament to how image generation just hits differently than text.&lt;/p>
+&lt;p>This begs the ultimate question: Can we deliver a Nano Banana-like experience on the edge? The answer isn&amp;rsquo;t simple. Diffusion models are brutally sensitive to noise. In &lt;a href="../edge-diffusion-1/">my last blog post&lt;/a>, &lt;a href="../edge-diffusion-1/#tiny-sd-starting-as-small-as-possible">my naive port of Tiny SD failed spectacularly&lt;/a>, yielding noisy and psychedelic outputs.&lt;/p>
+&lt;p>As a result, I&amp;rsquo;ve turned my attention to &lt;a href="https://huggingface.co/apple/coreml-stable-diffusion-v1-5" target="_blank" rel="noopener">Apple&amp;rsquo;s CoreML Stable Diffusion&lt;/a> model, betting its proprietary, hardware-aware design will save this project. How did Apple&amp;rsquo;s engineers successfully squeeze a 6GB model into a sub-2GB, sub-10-second iOS package while maintaining quality? Their secret lies in the careful orchestration of quantization, hardware co-design, and architectural compromises.&lt;/p>
+&lt;figure>
+&lt;img src="images/coreml-quick-test.png" style="width: 40%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 1.&lt;/strong> Prototyping testing. A generated image from the text prompt &lt;code>"A beautiful landscape with mountains and a lake, golden hour lighting"&lt;/code> using Apple’s CoreML Stable Diffusion model. The output is a high-quality, realistic rendering of a rustic mountain range at sunset.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>This post dissects exactly how Apple pulled off that optimization miracle. By examining which layers got quantized, how Neural Engine constraints shaped the architecture, and where the remaining quality trade-offs live, we&amp;rsquo;ll be ready to build our edge conditional image generation experience in &lt;a href="../edge-diffusion-3/">this blogpost series&amp;rsquo;s conclusion&lt;/a>.&lt;/p>
+&lt;h2 id="apples-optimization-strategy">Apple&amp;rsquo;s Optimization Strategy&lt;/h2>
+&lt;p>Let&amp;rsquo;s start with the numbers. Apple took &lt;a href="https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5" target="_blank" rel="noopener">Runway ML&amp;rsquo;s 6GB Stable Diffusion&lt;/a> implementation, compressed it by over 70%, and then embedded it onto their proprietary Apple Neural Engine (ANE) hardware. The ANE is the third processor in Apple Silicon, sitting alongside the standard CPU and GPU. It&amp;rsquo;s a dedicated Neural Processing Unit (NPU) purpose-built for the high-throughput matrix operations that define neural network inference.&lt;/p>
+&lt;figure>
+&lt;img src="images/original-sd-demo.png" style="width: 50%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 2.&lt;/strong> An image by generated by the Runway ML's 6GB Stable Diffusion model, which served as the base model for Apple's CoreML implementation (&lt;a href="https://deepinfra.com/runwayml/stable-diffusion-v1-5/api">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;figure>
+&lt;img src="images/coreml_readme.png" style="width: 100%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 3.&lt;/strong> Sample images from Apple's official CoreML Stable Diffusion demo. As seen, there's some quality degradation when compared to Fig. 2, but the majority of model quality is preserved (&lt;a href="https://github.com/apple/ml-stable-diffusion">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>This hyper-specialized hardware enabled Apple to achieve blisteringly fast results: each denoising step takes only ~0.37–0.39 seconds and a high-quality images are generated within 20 steps (documented &lt;a href="https://github.com/apple/ml-stable-diffusion" target="_blank" rel="noopener">here&lt;/a>). Of course, Apple didn&amp;rsquo;t use a single optimization technique to achieves these impressive runtimes; rather, they employed an entire optimization playbook:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>Model precision reduction.&lt;/strong> Apple applies a crucial two-step precision reduction process of &lt;strong>(a)&lt;/strong> initial quantization from &lt;code>float32&lt;/code> to &lt;code>float16&lt;/code> to halve memory consumption and &lt;strong>(b)&lt;/strong> followed by aggressive palettization to &lt;code>6-bit&lt;/code> weights to yield another ~40-50% reduction. That&amp;rsquo;s how we went from a 6GB model to a 1.5GB one.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Neural Engine optimization.&lt;/strong> CoreML&amp;rsquo;s ANE-specific compilation pipeline fuses common machine learning operators and optimizes tensor memory layouts for the ANE&amp;rsquo;s specialized compute units. &lt;a href="https://machinelearning.apple.com/research/neural-engine-transformers" target="_blank" rel="noopener">Apple&amp;rsquo;s own benchmarks&lt;/a> show that ANE-optimized models achieve up to 10× speedup with 14× reduction in peak memory consumption compared to unoptimized implementations on the iPhone 13.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Model chunking.&lt;/strong> The pipeline is split into four independently loadable components (&lt;code>.mlmodelc&lt;/code> files). iOS dynamically swaps these components in the &lt;code>reduceMemory&lt;/code> option to keep peak memory usage below the 2GB limit. The trade-off is increased end-to-end latency due to this just-in-time loading overhead as seen in their &lt;a href="https://github.com/apple/ml-stable-diffusion#performance-benchmark" target="_blank" rel="noopener">official benchmarks&lt;/a>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Attention implementation.&lt;/strong> Apple uses a &lt;a href="https://machinelearning.apple.com/research/neural-engine-transformers" target="_blank" rel="noopener">SPLIT_EINSUM attention variant&lt;/a>. It breaks multi-head attention into explicit single-head functions and relies on einsum operations to avoid the reshape and transpose steps that trigger memory copies. Because the ANE excels at fixed 4D tensor layouts, keeping data in this shape is crucial. Combined with Apple’s other optimizations, this approach delivered up to &lt;a href="https://machinelearning.apple.com/research/neural-engine-transformers" target="_blank" rel="noopener">10× faster inference and 14× lower peak memory on their distilbert benchmark&lt;/a>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Scheduler Optimization.&lt;/strong> The original model was used &lt;a href="https://arxiv.org/abs/2202.09778" target="_blank" rel="noopener">the PNDM (Pseudo-numerical methods for Denoising Models) scheduler&lt;/a>, which requires 50+ computational steps. Apple swapped this for the modern &lt;a href="https://arxiv.org/abs/2211.01095" target="_blank" rel="noopener">DPMSolverMultistepScheduler&lt;/a>. PNDM uses estimates from recent steps to predict the denoising direction, allowing it to learn from recent history to make smarter jumps. This drastically reduces the required denoising steps from &lt;a href="https://arxiv.org/abs/2211.01095" target="_blank" rel="noopener">50+ to 20-25 without sacrificing image quality&lt;/a>.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;p>Each optimization technique targets a different performance bottleneck, whether it be memory footprint, inference latency, or peak memory usage. Let&amp;rsquo;s now examine each technique in detail.&lt;/p>
+&lt;h3 id="model-compression">Model Compression&lt;/h3>
+&lt;p>Apple engineers pulled off an impressive 70% size reduction through a two-phase compression strategy. They started with a straightforward precision reduction from &lt;code>float32&lt;/code> to &lt;code>float16&lt;/code> and followed up with palettization to jump from &lt;code>float16&lt;/code> to just &lt;code>6-bit&lt;/code>.&lt;/p>
+&lt;h4 id="phase-1-quantization">Phase 1: Quantization&lt;/h4>
+&lt;p>Model parameters in standard PyTorch models consume 32 bits (float32), making the 1.3B parameter Stable Diffusion consume 5.2GB of RAM. In &lt;strong>quantization&lt;/strong>, we lower the bit-precision used to store each weight, sacrificing some information for a smaller memory footprint.&lt;/p>
+&lt;p>The first step is to halve the precision to &lt;code>float16&lt;/code>. CoreML achieved this using simple datatype casting (no algorithmic quantization, clustering, or lookup tables), which instantly halves memory with minimal accuracy loss. This simple technique works because
+&lt;a href="https://apple.github.io/coremltools/docs-guides/source/quantization-neural-network.html" target="_blank" rel="noopener">float16 is considered the &amp;ldquo;safe&amp;rdquo; floor&lt;/a> for neural networks. This precision level retains enough dynamic range (the span of representable values) and precision to accurately encode most model weights.&lt;/p>
+&lt;p>This reduces memory consumption from 5.2GB to 2.6GB, which is a great start but above my sub-2GB target. If we naively lower the precision any further, we risk catastrophic information loss and would get corrupted outputs like those from my Tiny SD port. Meaning, we need a more clever quantization technique.&lt;/p>
+&lt;h4 id="phase-2-palettization">Phase 2: Palettization&lt;/h4>
+&lt;p>Apple wanted to build a generalizable framework for compress &lt;em>any&lt;/em> Stable Diffusion checkpoint, including community fine-tunes. Hence, they needed a flexible approach that didn&amp;rsquo;t depend on access to the original training data. This immediately rules out state-of-the-art methods like &lt;a href="https://arxiv.org/abs/2306.00978" target="_blank" rel="noopener">AWQ&lt;/a> or &lt;a href="https://arxiv.org/abs/2210.17323" target="_blank" rel="noopener">GPTQ&lt;/a>, which require calibration data to analyze activations and identify the most salient (important) weights.&lt;/p>
+&lt;p>&lt;a href="https://arxiv.org/abs/1510.00149" target="_blank" rel="noopener">Palettization&lt;/a> offers a perfect alternative. It achieves aggressive compression without calibration data by using simple, interpretable k-means clustering. This technique actually originates from &lt;a href="https://dl.acm.org/doi/10.1145/800064.801294" target="_blank" rel="noopener">color quantization&lt;/a> in computer graphics. Essentially, during image compression, we needed to map millions of possible colors in an image to a smaller fixed set of representative values.&lt;/p>
+&lt;figure>
+&lt;img src="images/color-quantization.png" style="width: 70%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 4.&lt;/strong> An example of color quantization, where the original photograph palette was reduced seven distinct colors (&lt;a href="https://demonstrations.wolfram.com/ColorQuantizationOfPhotographicImagesIPaletteFromColorsInThe/">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>The same logic can be applied to model weights. Here&amp;rsquo;s how it works:&lt;/p>
+&lt;ol>
+&lt;li>Analyze the distribution of weights in each layer&lt;/li>
+&lt;li>Cluster similar weights using k-means to create a &amp;ldquo;palette&amp;rdquo; of representative values (e.g., 64 values for 6-bit palettization, since $2^6 = 64$)&lt;/li>
+&lt;li>Replace each original weight with an index pointing to its nearest palette entry&lt;/li>
+&lt;li>Store the compact palette plus the many small indices instead of full-precision weights&lt;/li>
+&lt;/ol>
+&lt;p>The bit-width determines how many palette entries you get, and thus your compression ratio. Table 1 summarizes the trade-offs in palette entry number selection.&lt;/p>
+&lt;style>
+.centered-table {
+display: flex;
+flex-direction: column;
+align-items: center;
+margin: 2rem 0;
+}
+.centered-table table {
+border-collapse: collapse;
+}
+.centered-table th, .centered-table td {
+padding: 0.5rem 1rem;
+border: 1px solid #ddd;
+}
+.centered-table figcaption {
+margin-top: 0.5rem;
+font-style: normal;
+text-align: center;
+}
+&lt;/style>
+&lt;div class="centered-table">
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Bit Width&lt;/th>
+&lt;th>Palette Entries&lt;/th>
+&lt;th>Compression vs Float16&lt;/th>
+&lt;th>Quality Impact&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>8-bit&lt;/td>
+&lt;td>256&lt;/td>
+&lt;td>~2×&lt;/td>
+&lt;td>Minimal quality loss&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>6-bit&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>~2.67×&lt;/td>
+&lt;td>Acceptable quality trade-off&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>4-bit&lt;/td>
+&lt;td>16&lt;/td>
+&lt;td>~4×&lt;/td>
+&lt;td>Noticeable degradation&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2-bit&lt;/td>
+&lt;td>4 &lt;/td>
+&lt;td>~8× &lt;/td>
+&lt;td>Severe quality issues&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;figcaption> &lt;strong> Table 1. &lt;/strong> Palettization bit-width options and their associated trade-offs.&lt;/figcaption>
+&lt;/div>
+&lt;p>For our selected CoreML Stable Diffusion variant, &lt;a href="https://huggingface.co/apple/coreml-stable-diffusion-v1-5-palettized" target="_blank" rel="noopener">Apple used 6-bit palettization&lt;/a> to achieve a final ~1.5GB model size. For even larger models like &lt;a href="https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0" target="_blank" rel="noopener">SDXL&lt;/a> (6.94 GB), Apple used &lt;a href="https://github.com/apple/ml-stable-diffusion/blob/main/README.md#compression-lower-than-6-bits" target="_blank" rel="noopener">mixed-bit palettization&lt;/a> for stronger model compression. Here, we assign different bit-widths (1, 2, 4, 6, or 8 bits) to different layers based on a sensitivity analysis.&lt;/p>
+&lt;h3 id="neural-engine-optimization">Neural Engine Optimization&lt;/h3>
+&lt;p>Apple&amp;rsquo;s Neural Engine (NE) debuted &lt;a href="https://machinelearning.apple.com/research/neural-engine-transformers" target="_blank" rel="noopener">in 2017 inside the iPhone X&amp;rsquo;s A11 Bionic chip&lt;/a> to power Face ID. &lt;a href="https://support.apple.com/en-us/102381" target="_blank" rel="noopener">The TrueDepth camera fires over 30,000 infrared dots&lt;/a> to map your face, and handles that data in real time. That stream in real time was too slow and too power-hungry for the GPU, pushing Apple to develop their own NPU.&lt;/p>
+&lt;p>That &lt;a href="https://machinelearning.apple.com/research/neural-engine-transformers" target="_blank" rel="noopener">first-gen ANE delivered 0.6 teraflops of float16&lt;/a> compute. By 2018, with release of &lt;a href="https://www.apple.com/newsroom/2018/09/iphone-xs-and-iphone-xs-max-bring-the-best-and-biggest-displays-to-iphone/" target="_blank" rel="noopener">the A12 chip&lt;/a> and &lt;a href="https://devstreaming-cdn.apple.com/videos/wwdc/2017/710vxa4hl8hyb72/710/710_core_ml_in_depth.pdf" target="_blank" rel="noopener">Core ML&lt;/a>, Apple opened the Neural Engine to developers, and today it’s baked into every modern iOS device.&lt;/p>
+&lt;figure>
+&lt;img src="images/ane-tflops-stats.png" style="width: 80%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 5.&lt;/strong> The evolution of the Apple Neural Engine from 2017 to 2021. The 16-core Neural Engine on on the A15 Bionic chip (iPhone 13 Pro) has a peak throughput 26 times higher than its original counterpart. (&lt;a href="https://machinelearning.apple.com/research/neural-engine-transformers">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>But where does &lt;a href="https://developer.apple.com/documentation/coreml" target="_blank" rel="noopener">Core ML&lt;/a> fit into all this? Since ANE is proprietary hardware, there’s no public API to program it directly. Its architecture, instruction set, and compiler are all trade secrets. With no official documentation on ANE-supported operations or optimization methods, most developer knowledge comes from &lt;a href="https://github.com/hollance/neural-engine" target="_blank" rel="noopener">trial-and-error and reverse engineering&lt;/a>. Core ML is the only way iOS developers can access the Neural Engine.&lt;/p>
+&lt;p>It consists of two parts:&lt;/p>
+&lt;ol>
+&lt;li>&lt;a href="https://opensource.apple.com/projects/coreml-tools/" target="_blank" rel="noopener">coremltools&lt;/a> is an open source Python package that converts models from frameworks like PyTorch and TensorFlow into Core ML&amp;rsquo;s optimized format&lt;/li>
+&lt;li>The on-device Core ML framework that loads these compiled models and executes them.&lt;/li>
+&lt;/ol>
+&lt;p>When you convert a model with &lt;code>coremltools&lt;/code>, it figures out which operations can run on the ANE versus the CPU or GPU, applies optimizations, and compiles the model into an efficient format. At runtime, Core ML then routes each operation to the right compute unit to maximize performance and minimize power use.&lt;/p>
+&lt;p>CoreML gives you three ways to run unit neural networks on device:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>CPU Only.&lt;/strong> This is the slowest but most safest option. According to the &lt;a href="https://onnxruntime.ai/docs/execution-providers/CoreML-ExecutionProvider.html#coreml_flag_use_cpu_only" target="_blank" rel="noopener">ONNX Runtime documentation&lt;/a>, CPU-only mode is mainly available for debugging and validation, since it avoids precision differences and guarantees predictable results. Community benchmarks suggest it runs approximately &lt;a href="https://mybyways.com/blog/faster-stable-diffusion-on-mseries-macs" target="_blank" rel="noopener">7-8x slower&lt;/a> than optimal configurations, making it impractical for real-time generation.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>CPU and GPU.&lt;/strong> This combination is capable but not recommended. GPUs were originally built for desktops with unlimited power, so they’re plausible but not ideal for running heavy models on mobile devices. It&amp;rsquo;s typically used for Macs with powerful GPUs or as a fallback for older devices without a Neural Engine.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>CPU ane ANE.&lt;/strong> This is Apple&amp;rsquo;s recommended configuration for deploying intensive models on iPhones and iPads. ANE was specifically designed for ML inference workloads and delivers comparable performance to GPU at a fraction of the power consumption.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;p>In our case, I configured &lt;code>coreml-stable-diffusion-v1-5-palettized&lt;/code> to run primarily on the Neural Engine with CPU fallback for unsupported operations. This hybrid approach maximizes performance where it counts while maintaining graceful degradation for edge cases.&lt;/p>
+&lt;h3 id="model-chunking">Model Chunking&lt;/h3>
+&lt;p>iOS enforces stricter memory constraints than macOS. As noted in &lt;a href="https://apple.github.io/coremltools/docs-guides/source/opt-stable-diffusion.html" target="_blank" rel="noopener">Apple&amp;rsquo;s CoreML optimization guide&lt;/a>,&lt;/p>
+&lt;p>ANE&amp;rsquo;s specialized architecture comes with strict model size constraints. iOS enforces stricter per-file memory mapping limits than macOS. While the exact limit is undocumented, &lt;a href="https://apple.github.io/coremltools/docs-guides/source/opt-stable-diffusion.html" target="_blank" rel="noopener">Apple&amp;rsquo;s optimization guide&lt;/a> suggests it&amp;rsquo;s around 1GB based on their compression targets for mobile deployment. Meaning, attempting to load our U-Net component, which is roughly 1.5GB in float16 precision, will iPhone triggers memory allocation failure, even if it&amp;rsquo;d run perfectly on a Mac.&lt;/p>
+&lt;p>This makes &lt;a href="https://github.com/apple/ml-stable-diffusion?tab=readme-ov-file#-converting-models-to-core-ml" target="_blank" rel="noopener">model chunking&lt;/a> essential for mobile deployment. The idea is simple: we split huge weight files into smaller slices that fit within iOS’s memory limits, and let the runtime load each slice on demand. Apple&amp;rsquo;s &lt;code>ml-stable-diffusion&lt;/code> repo handles this automatically with the &lt;a href="https://github.com/apple/ml-stable-diffusion" target="_blank" rel="noopener">&lt;code>--chunk-unet&lt;/code> conversion flag&lt;/a> flag, which divides the U-Net weights into multiple files that stay well under the limit. These chunks are stored in the &lt;code>.mlmodelc&lt;/code> format, a pre-compiled, ANE-optimized layout that improve loading time.&lt;/p>
+&lt;p>The beauty of Apple&amp;rsquo;s setup is that developers never have to think about model chunking. Core ML handles this behind the scenes. While there&amp;rsquo;s a small cost to pulling in multiple files, we wouldn&amp;rsquo;t be able to run Stable Diffusion on iOS without this approach.&lt;/p>
+&lt;h3 id="attention-variants">Attention Variants&lt;/h3>
+&lt;p>Apple&amp;rsquo;s CoreML conversion tools offer two attention implementations that compute identical mathematical operations but differ critically in their kernel implementation.&lt;/p>
+&lt;h4 id="1-the-original-attention-mechanism">1. The Original Attention Mechanism&lt;/h4>
+&lt;p>This implementation uses the standard batched multi-head attention formula:&lt;/p>
+&lt;pre>&lt;code class="language-python"># Shape: [batch, seq_len, heads * head_dim]
+Q, K, V = linear_projections(x)
+# Reshape to [batch, heads, seq_len, head_dim]
+Q = Q.reshape(batch, seq_len, heads, head_dim).transpose(1, 2)
+K = K.reshape(batch, seq_len, heads, head_dim).transpose(1, 2)
+V = V.reshape(batch, seq_len, heads, head_dim).transpose(1, 2)
+# Batched matrix multiplication across all heads
+# [batch, heads, seq_len, head_dim]
+attention = softmax(Q @ K.transpose(-2, -1) / sqrt(d_k)) @ V
+# Reshape back
+output = attention.transpose(1, 2).reshape(batch, seq_len, heads * head_dim)
+&lt;/code>&lt;/pre>
+&lt;p style="text-align: center; font-size: 0.75em; margin-top: 0.5em; color: #66;">
+&lt;strong>Figure 6.&lt;/strong> Pseudocode of the &lt;a href="https://arxiv.org/abs/1706.03762">original attention&lt;/a> mechanism.
+&lt;/p>
+&lt;p>This works well on CPUs and GPUs, which handle dynamic reshaping efficiently. It&amp;rsquo;s &lt;a href="https://github.com/apple/ml-stable-diffusion#performance-benchmark" target="_blank" rel="noopener">faster on Macs with discrete GPUs&lt;/a> (M1 Pro/Max/Ultra) where memory bandwidth isn&amp;rsquo;t the primary bottleneck.&lt;/p>
+&lt;h4 id="2-split-einsum-attention">2. Split Einsum Attention&lt;/h4>
+&lt;p>ANE penalizes non-contiguous memory access, which makes the reshape/transpose operations shown in Figure 6 computationally expensive. Fortunately, we can rewrite matrix multiplication as a series of &lt;a href="https://mathworld.wolfram.com/EinsteinSummation.html" target="_blank" rel="noopener">Einstein summations&lt;/a> (einsums) as shown in Equation 1 to better utilize ANE.
+$$
+C_{ik} = \sum_{j} A_{ij} B_{jk} = AB = C
+\tag{1}
+$$&lt;/p>
+&lt;p>By keeping keeps tensors in fixed 3D layouts and using the einsum operation, we avoid generating unnecessary memory copies. The implementation looks something like this:&lt;/p>
+&lt;pre>&lt;code class="language-python"># Shape: [batch, seq_len, heads * head_dim]
+Q, K, V = linear_projections(x)
+# Split into explicit per-head tensors (no reshape)
+Q_heads = [Q[:, :, i*head_dim:(i+1)*head_dim] for i in range(heads)]
+K_heads = [K[:, :, i*head_dim:(i+1)*head_dim] for i in range(heads)]
+V_heads = [V[:, :, i*head_dim:(i+1)*head_dim] for i in range(heads)]
+# Compute attention per head using einsum (preserves 3D tensor layout)
+outputs = []
+for Q_h, K_h, V_h in zip(Q_heads, K_heads, V_heads):
+# [batch, seq_len, seq_len]
+scores = torch.einsum('bqd,bkd-&amp;gt;bqk', Q_h, K_h) / sqrt(head_dim)
+attn = softmax(scores, dim=-1)
+out = torch.einsum('bqk,bkd-&amp;gt;bqd', attn, V_h) # [batch, seq_len, head_dim]
+outputs.append(out)
+# Concatenate (cheap operation)
+output = torch.cat(outputs, dim=-1) # [batch, seq_len, heads * head_dim]
+&lt;/code>&lt;/pre>
+&lt;p style="text-align: center; font-size: 0.75em; margin-top: 0.5em; color: #66;">
+&lt;strong>Figure 7.&lt;/strong> Pseudocode of the &lt;a href="https://machinelearning.apple.com/research/neural-engine-transformers">einsum attention variant&lt;/a>.
+&lt;/p>
+&lt;p>The trade-off is lower parallelism, since we&amp;rsquo;re using explicit per-head loops rather than batched operations. This hurts GPU performance, but &lt;a href="https://machinelearning.apple.com/research/neural-engine-transformers" target="_blank" rel="noopener">ANE performance is bottlenecked by memory bandwidth&lt;/a>. Meaning, the memory savings outweigh the costs of reduced parallelism.&lt;/p>
+&lt;h3 id="scheduler-optimization">Scheduler Optimization&lt;/h3>
+&lt;p>Diffusion models turn random static into art by clearing away noise. The &lt;strong>scheduler&lt;/strong> (also called a sampler or solver) is the control algorithm that orchestrates the denoising loop: it calls the U-Net at each timestep to predict the noise, then uses its mathematical formula to update the image toward a cleaner state. Meaning, the scheduler controls the number of diffusion steps needed for high-quality image generation. If we select a more efficient scheduler, we can improve inference time without degrading quality.&lt;/p>
+&lt;p>The &lt;a href="https://huggingface.co/runwayml/stable-diffusion-v1-5" target="_blank" rel="noopener">original Stable Diffusion models&lt;/a> used the &lt;a href="https://arxiv.org/abs/2202.09778" target="_blank" rel="noopener">PNDM (Pseudo Numerical Methods for Diffusion Models)&lt;/a> scheduler, which applies a linear multi-step method:&lt;/p>
+&lt;p>$$
+x_{t-1} = x_t + \sum_{i=0}^{k-1} \alpha_i \cdot \epsilon_\theta(x_{t-i}, t-i)
+\tag{2}
+$$&lt;/p>
+&lt;p>where $x_t$ is the current noisy image at timestep $t$, $\epsilon_\theta$ predicts what noise to remove, and $\alpha_i$ are coefficients that weight predictions from the past $k$ steps. As seen in Equation 2, PNDM treats each timestep as a discrete prediction problem, where each step uses local information (the last few predictions). In this context, larger jumps (more noise removal per step) risk error accumulation, which lowers image quality. &lt;a href="https://arxiv.org/abs/2202.09778" target="_blank" rel="noopener">PNDM tends to require ~50 diffusion steps to yield acceptable outputs.&lt;/a>&lt;/p>
+&lt;p>The &lt;a href="https://arxiv.org/abs/2211.01095" target="_blank" rel="noopener">DPMSolverMultistepScheduler&lt;/a> treats denoising as a continuous process rather than discrete jumps. Since noise is added gradually during training, it can be removed along a smooth, continuous path that written as an Ordinary Differential Equation (ODE):&lt;/p>
+&lt;p>$$
+\frac{dx_t}{dt} = f(t) x_t + g(t) \epsilon_\theta(x_t, t)
+\tag{3}
+$$&lt;/p>
+&lt;p>This makes diffusion a continuous process and allows the DPM Solver to take larger, more informed steps through the denoising trajectory. As a result, &lt;a href="https://arxiv.org/abs/2211.01095" target="_blank" rel="noopener">25 steps with DPM Solver produces quality comparable&lt;/a> to 50 steps with PNDM, offering a 2× speedup.&lt;/p>
+&lt;p>This made it the DPM Solver an obvious choice for Apple&amp;rsquo;s CoreML implementation, where every second of latency matters. The step count creates a direct quality-speed trade-off:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Strategy&lt;/th>
+&lt;th>Steps&lt;/th>
+&lt;th>Runtime&lt;/th>
+&lt;th>Quality Impact&lt;/th>
+&lt;th>Use Case&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;strong>Aggressive&lt;/strong>&lt;/td>
+&lt;td>15-20&lt;/td>
+&lt;td>10-15 seconds&lt;/td>
+&lt;td>Noticeable artifacts, loss of fine details&lt;/td>
+&lt;td>Quick previews, concept iteration&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;strong>Balanced&lt;/strong>&lt;/td>
+&lt;td>20-30&lt;/td>
+&lt;td>15-25 seconds&lt;/td>
+&lt;td>High-quality results, minimal artifacts&lt;/td>
+&lt;td>Production deployment&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;strong>Conservative&lt;/strong>&lt;/td>
+&lt;td>50+&lt;/td>
+&lt;td>35+ seconds&lt;/td>
+&lt;td>Marginal improvement over 25 steps&lt;/td>
+&lt;td>Not worth the extra latency on mobile&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p style="text-align: center; font-size: 0.75em; margin-top: 0.5em; color: #66;">
+&lt;strong>Table 2.&lt;/strong> Trade-off between diffusion steps and image quality when using the DPMSolverMultistepScheduler.
+&lt;/p>
+&lt;p>After extensive testing, I settled on 25 steps as my default to properly balance my need for quality and speed.&lt;/p>
+&lt;br/>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>Apple&amp;rsquo;s CoreML Stable Diffusion represents a masterclass in optimization engineering. With aggressive quantization, ANE-friendly attention kernels, and smart scheduling, Apple squeezed a 6GB model into a 1.5GB package that can generate an image in under 10 seconds on an iPhone. It&amp;rsquo;s a technical flex that&amp;rsquo;s hard to overstate.&lt;/p>
+&lt;p>But here&amp;rsquo;s an uncomfortable truth: optimization doesn’t expand capabilities. Apple solved &lt;em>how&lt;/em> to run Stable Diffusion on mobile — not whether it&amp;rsquo;s good enough. Strip away the speedups, and we&amp;rsquo;re left with the a 2022-era model:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Poor identity preservation.&lt;/strong> Try img2img at high denoising strength and watch faces dissolve into uncanny abstractions. The model simply can&amp;rsquo;t maintain coherent identity while delivering image transformation.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Prompt adherence is weak.&lt;/strong> Compared to &lt;a href="https://stablediffusionxl.com/" target="_blank" rel="noopener">SDXL&lt;/a> or &lt;a href="https://bfl.ai/models/flux-pro" target="_blank" rel="noopener">Flux&lt;/a>, SD 1.5 treats our carefully crafted prompt more like a vague suggestion than a clear set of instructions.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>As a result, I can&amp;rsquo;t just port Apple&amp;rsquo;s approach.&lt;/p>
+&lt;h3 id="whats-next">What&amp;rsquo;s next?&lt;/h3>
+&lt;p>My goal is conditional edge image generation with an explicit need for character consistency. If Apple&amp;rsquo;s optimizations give us the blueprint for mobile deployment, what architecture actually delivers my required capabilities?&lt;/p>
+&lt;p>That&amp;rsquo;s what I&amp;rsquo;ll cover in &lt;a href="../edge-diffusion-3/">my next and final blogpost&lt;/a>. My goal isn’t just to run fast; it’s to run fast and look good doing it.&lt;/p></description></item><item><title>Frames Per Second (Part 1): The Hunt for a Tiny, High-Quality Diffusion Model</title><link>https://bellanich.github.io/post/edge-diffusion-1/</link><pubDate>Mon, 24 Nov 2025 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-diffusion-1/</guid><description>&lt;!-- Welcome 👋 -->
+&lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
+&lt;!-- - [Table of Contents](#table-of-contents) -->
+&lt;ul>
+&lt;li>&lt;a href="#table-of-contents">Table of Contents&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#introduction">Introduction&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#problem-constraints">Problem Constraints&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#beyond-the-noise-unpacking-the-architecture-of-diffusion-models">Beyond the Noise: Unpacking the Architecture of Diffusion Models&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#model-architecture">Model Architecture&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#text-to-image-vs-image-to-image-generation">Text-to-Image vs. Image-to-Image Generation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#nano-banana-todays-state-of-the-art">Nano Banana: Today&amp;rsquo;s State of the Art&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#the-model-search">The Model Search&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#tiny-sd-starting-as-small-as-possible">Tiny SD: Starting as Small as Possible&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#coreml-stable-diffusion">CoreML Stable Diffusion&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#conclusion">Conclusion&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#whats-next">What&amp;rsquo;s next?&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>I have a problem: I love testing out and applying the latest ML research, but I really dislike managing my own cloud infrastructure. That&amp;rsquo;s why I ended up &lt;a href="../../portfolio//edge-llm/">embedding a multimodal LLM on various edge devices&lt;/a> last year. However, generated text doesn&amp;rsquo;t deliver the same immediate, visceral impact that high-quality images do, compelling me to switch domains.&lt;/p>
+&lt;p>Unfortunately, deploying a state-of-the-art (SOTA) diffusion model on the edge is far harder than its LLM counterpart. LLMs work in a discrete output space (i.e., tokens). Thus, they tolerate the noise of simple compression algorithms relatively well. In contrast, diffusion models operate on a continuous, dense latent space, causing the same amount of noise to more severely degradate model performance. Attempting to shrink a 4GB model to fit the standard 2GB iOS memory budget is a brutal performance problem. For better or worse, this is my favorite type of problem to solve.&lt;/p>
+&lt;h3 id="problem-constraints">Problem Constraints&lt;/h3>
+&lt;p>To keep things interesting, I decided to target deployment directly for my iPhone 16 (~8GB of RAM). If this model can run effectively on my phone, I&amp;rsquo;ll always have a tiny, powerful image generator right in my pocket. However, this choice immediately imposed a very strict iOS memory budget. iOS apps encounter a dynamic limit from ~2-4 GB (roughly &lt;a href="https://developer.apple.com/documentation/coreml" target="_blank" rel="noopener">50-70% of total RAM&lt;/a>) that triggers an &lt;code>EXC_RESOURCE RESOURCE_TYPE_MEMORY&lt;/code> termination exception and crashes the app.&lt;/p>
+&lt;p>Of course, compressing the model is only half the battle. If it&amp;rsquo;s too slow, any reasonable user will just quit the app, rendering the entire point moot. Hence, I set a 60-second end-to-end limit for the pipeline, allotting 40 seconds for model inference.&lt;/p>
+&lt;p>This high bar for speed and precision demanded a pipeline built around conditional image generation (Image-to-Image or Img2Img). This is essential because it:&lt;/p>
+&lt;ol>
+&lt;li>Provides superior creative control and output fidelity.&lt;/li>
+&lt;li>Elevates the ML-side challenge by requiring hands-on control of the model&amp;rsquo;s neural network sub-components&lt;/li>
+&lt;li>Delivers a more engaging user experience by actively transforming the source photo&lt;/li>
+&lt;/ol>
+&lt;p>The final, non-negotiable rule was that the output images needed to be of reasonable quality. Meaning, the model needs to generate easily identifiable objects that are in-line with the provided text prompt.&lt;/p>
+&lt;h2 id="beyond-the-noise-unpacking-the-architecture-of-diffusion-models">Beyond the Noise: Unpacking the Architecture of Diffusion Models&lt;/h2>
+&lt;p>The path to modern image generation was surprisingly quick. &lt;a href="https://openai.com/index/dall-e-2/" target="_blank" rel="noopener">Open AI released DALL-E in January 2021&lt;/a>, &lt;a href="https://stability.ai/news/stable-diffusion-public-release" target="_blank" rel="noopener">Stable Diffusion democratized the field in August 2022&lt;/a>, and suddenly everyone had access to conditional image synthesis.&lt;/p>
+&lt;p>This new era of vision models is powered by &lt;a href="https://arxiv.org/pdf/2006.11239" target="_blank" rel="noopener">diffusion&lt;/a>, where the model learns to destroy images systematically and then reverses the process.&lt;/p>
+&lt;figure>
+&lt;img src="images/noise_to_image.jpg" style="width: 100%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 1.&lt;/strong> A visualization of the diffusion process. Noise is added to (forward pass) or removed from the image (reverse processes) (&lt;a href="https://www.siam.org/publications/siam-news/articles/generalization-of-diffusion-models-principles-theory-and-implications/">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>We start with the original image $x_0$ and progressively corrupt it by adding Gaussian noise over $T$ timesteps. At each step, we keep some fraction of the previous image and add fresh noise:&lt;/p>
+&lt;p>$$q(x_t | x_{t-1}) = \mathcal{N}(x_t; \sqrt{1 - \beta_t} x_{t-1}, \beta_t I)$$&lt;/p>
+&lt;p>where $\beta_t$ controls the noise intensity. This defines a &lt;strong>Markov chain&lt;/strong>, a sequence of random states where each state $x_t$ depends only on the immediately previous state $x_{t-1}$, nothing earlier.&lt;/p>
+&lt;p>This Markov property ensures that while each image follows a different random path to noise, all images at timestep t share identical noise statistics (same signal-to-noise ratio). This predictable structure lets us train a neural network to predict the noise $\epsilon$ added at any timestep, which we can then subtract to reverse the corruption. Once trained, the model generates images by starting with pure noise and iteratively denoising over 20-50 steps, guided by a text prompt.&lt;/p>
+&lt;p>During training, we need noisy images at various timesteps to teach the model this denoising function. Stepping through $x_1 \rightarrow x_2 \rightarrow \cdots \rightarrow x_t$ sequentially for every training sample would be computationally infeasible. Fortunately, a key mathematical property of Markov chains with Gaussian transitions is that the entire sequence collapses into a closed-form solution:&lt;/p>
+&lt;p>$$ x_t = \sqrt{\bar{\alpha}_t} x_0 + \sqrt{1 - \bar{\alpha}_t} \epsilon $$&lt;/p>
+&lt;p>where $\epsilon \sim \mathcal{N}(0, I)$ is random noise and $\bar{\alpha}_t = \prod_{i=1}^{t}(1 - \beta_i)$ accumulates all the noise scaling factors up to time $t$. This &lt;strong>reparameterization trick&lt;/strong> lets us jump directly to any timestep in one shot, making model training computationally feasible&lt;/p>
+&lt;h3 id="model-architecture">Model Architecture&lt;/h3>
+&lt;p>The &lt;a href="https://arxiv.org/abs/2006.11239" target="_blank" rel="noopener">original diffusion paper&lt;/a> introduced the denoising process, but it operated directly on pixels, making it computationally expensive. &lt;a href="https://arxiv.org/abs/2112.10752" target="_blank" rel="noopener">Stable Diffusion&lt;/a> changed the game by running diffusion in a compressed latent space, which dramatically reduces computational costs while maintaining quality.&lt;/p>
+&lt;figure>
+&lt;img src="images/stable-diffusion-components.png" style="width: 100%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 2.&lt;/strong> A visualization of how Stable Diffusion's three neural components work together to do text-to-image generation. In image-to-image generation, a vision encoder also maps the original image to a latent space representation (&lt;a href="https://jalammar.github.io/illustrated-stable-diffusion/">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Stable Diffusion is a composite of four neural networks:&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Text encoder.&lt;/strong> We use a &lt;a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener">Contrastive Language-Image Pre-training (CLIP)&lt;/a> network to convert text prompts into $77 \times 768$ embedding vectors. These embeddings semantically link language to visual concepts, allowing our model to &amp;ldquo;understand&amp;rdquo; our text inputs.&lt;/li>
+&lt;li>&lt;strong>Image encoder.&lt;/strong> We use a &lt;a href="https://arxiv.org/abs/1312.6114" target="_blank" rel="noopener">Variational Autoencoder Encoder (VAE)&lt;/a> to compress images from pixel space ($3 \times H \times W$) to a compact latent space ($4 \times \frac{H}{8} \times \frac{W}{8}$). This ~64× compression is the key efficiency innovation, since it lets us denoise the compressed representations rather than the full-resolution images.&lt;/li>
+&lt;li>&lt;strong>Image denoiser.&lt;/strong> The &lt;a href="https://arxiv.org/abs/1505.04597" target="_blank" rel="noopener">U-Net&lt;/a> is the core component that implements the reverse diffusion process. It accepts noisy latents, the current timestep, and text embeddings (via &lt;a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">cross-attention&lt;/a>) to predict what noise to remove.
+&lt;ul>
+&lt;li>This is the model&amp;rsquo;s heaviest component, consuming &lt;a href="https://github.com/CompVis/stable-diffusion" target="_blank" rel="noopener">roughly 85% of the Stable Diffusion&amp;rsquo;s total memory footprint&lt;/a>. The immense size is mandatory because the U-Net must model a universal, continuous denoising function spanning all timesteps and image content. This dense predictive complexity is precisely why the U-Net resists compression.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>Image decoder.&lt;/strong> The VAE decoder decompresses our latents back to high-resolution pixel-space images. This reconstruction is the final output that the model returns.&lt;/li>
+&lt;/ol>
+&lt;p>Even with these efficiency gains, deploying Stable Diffusion on mobile devices requires further aggressive but non-destructive U-Net compression. This architecture supports two distinct generation modes, each with different performance characteristics.&lt;/p>
+&lt;h3 id="text-to-image-vs-image-to-image-generation">Text-to-Image vs. Image-to-Image Generation&lt;/h3>
+&lt;p>Stable Diffusion supports two generation modes, each starting from a different point in the noise spectrum:&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Text-to-Image (T2I)&lt;/strong> starts with pure random noise and relies solely on the text prompt to guide generation. This maximizes the model&amp;rsquo;s creative freedom, but means we get little control over the final image&amp;rsquo;s structure or composition.&lt;/li>
+&lt;li>&lt;strong>Image-to-Image (Img2Img)&lt;/strong> adds noise to an existing image&amp;rsquo;s latent representation, then denoises it while being guided by both the original image structure and a text prompt. This trades creative flexibility for precise control over image composition.
+&lt;ul>
+&lt;li>The &lt;a href="https://github.com/CompVis/stable-diffusion/blob/main/README.md#image-modification-with-stable-diffusion" target="_blank" rel="noopener">strength parameter&lt;/a> sets how aggressively the model transforms its input. At $0.0$, the model returns the original image untouched. At $1.0$, the input is completely replaced with noise, making the output nearly identical to Text-to-Image generation.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;p>These two modes establish the foundational mechanics of image creation, but what happens when you scale that process to an unbelievable level of fidelity and control? That&amp;rsquo;s where Nano Banana Pro enters the frame.&lt;/p>
+&lt;h3 id="nano-banana-todays-state-of-the-art">Nano Banana: Today&amp;rsquo;s State of the Art&lt;/h3>
+&lt;p>In August 2025, Google DeepMind released &lt;a href="https://aistudio.google.com/models/gemini-2-5-flash-image" target="_blank" rel="noopener">Nano Banana&lt;/a>, a Gemini model natively generates interleaved text and images. It excels at image editing thanks to its strong character-consistency across different image edits. And unlike most image-generation models, which still benefited from long, detailed prompts, Nano Banana performs well with simple instructions.&lt;/p>
+&lt;figure>
+&lt;img src="images/nano-banana-figurine.png" style="width: 60%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 3.&lt;/strong> An example of the viral "Nano Banana" trend, where users generated figures representations of themselves and their favorite film characters, including James Bond (&lt;a href="https://www.instagram.com/p/DOiy0wciShc/">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>These capabilities were striking enough to &lt;a href="https://www.cnbc.com/2025/11/20/google-nano-banana-pro-gemini-3.html" target="_blank" rel="noopener">spark a viral and global social media trend&lt;/a>, where users turned themselves into figurines (Figure 3).&lt;/p>
+&lt;p>Three months later, &lt;a href="https://deepmind.google/models/gemini-image/pro/" target="_blank" rel="noopener">Nano Banana Pro&lt;/a> arrived. It extended its predecessor’s multi-character consistency to handle scenes with 10+ people (Figure 4) and dramatically improved text rendering, enabling designer-level infographics to be generated in minutes.&lt;/p>
+&lt;figure>
+&lt;img src="images/nano_banana_consistency.png" style="width: 100%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 4.&lt;/strong> Nano Banana Pro demonstrates an uncanny level of character consistency with its ability to merge 14 distinct, cute, and fuzzy characters into a cohesive scene (&lt;a href="https://blog.google/technology/ai/nano-banana-pro/">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Figure 5 shows one such example: “Best Chocolate Around the World: A Global Taste Odyssey,” which illustrates how cocoa is grown, processed, and enjoyed across regions.&lt;/p>
+&lt;figure>
+&lt;img src="images/chocolate_infographic.jpg" style="width: 100%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 5.&lt;/strong> Nano Banana Pro can generate beautifully illustrated and ultra-detailed infographic on demand. Consider this delicious example about where cocoa beans are grown and how they're turned into chocolate.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>However, both models remain closed-source and proprietary, so we can only infer how they work. We know performs some form of planning-style reasoning for image generation, because &lt;a href="https://x.com/karpathy/status/1992655330002817095" target="_blank" rel="noopener">it can solve university level phsyics and chemistry problems&lt;/a> by generating neatly written, correct solutions directly onto a blank exam page. It is, frankly, impressively capable. And since it is built on Gemini, it&amp;rsquo;s also probably too large to run on edge devices, even with aggressive model compression and optimization.&lt;/p>
+&lt;figure>
+&lt;img src="images/nano-banana-exam.jpeg" style="width: 100%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 6.&lt;/strong> Nano Banana Pro was able to successfully generate the correct solutions, including doodles, for university-level Physics and Chemistry exam questions (&lt;a href="https://x.com/karpathy/status/1992655330002817095/photo/1">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>This leaves us with a clear goal: replicate as much of this functionality as possible using open-source, on-device alternatives. Unfortunately, current mobile-friendly diffusion models more closely resemble 2021–2022 Stable Diffusion systems. They can produce coherent images, but they cannot match Nano Banana’s full range of abilities.&lt;/p>
+&lt;br/>
+&lt;h2 id="the-model-search">The Model Search&lt;/h2>
+&lt;p>Since Nano Banana Pro&amp;rsquo;s advanced capabilities only emerge at massive scale, we have to accept two harsh realities:&lt;/p>
+&lt;ol>
+&lt;li>We have to rely on open-source, convertible models that often lag 6-12 months behind industry SOTA; and&lt;/li>
+&lt;li>The model we choose won&amp;rsquo;t have the same magical coherence of its cloud-scale counterparts.&lt;/li>
+&lt;/ol>
+&lt;p>Simply put, I need to select a model that&amp;rsquo;s small enough to run on-device but still capable enough to produce usable results. We can translate our earlier &lt;a href="#problem-constraints">problem constraints&lt;/a> into the model specifications shown in Table 1.&lt;/p>
+&lt;figure>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Requirement&lt;/th>
+&lt;th>Specification&lt;/th>
+&lt;th>Reasoning&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;strong>Size&lt;/strong>&lt;/td>
+&lt;td>Memory footprint &amp;lt;2GB&lt;/td>
+&lt;td>iOS apps face strict memory limits (~2-4GB), allocate 2GB primarily for model usage to prevent crashes&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;strong>Performance&lt;/strong>&lt;/td>
+&lt;td>Inference &amp;lt;40 seconds&lt;/td>
+&lt;td>Fits within 60-second end-to-end pipeline budget, leaves room for pre/post-processing&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;strong>Hardware Support&lt;/strong>&lt;/td>
+&lt;td>Apple Neural Engine (ANE) optimization required&lt;/td>
+&lt;td>Standard Metal GPU processing will be too slow, need leverage the iPhone's built-in AI accelerator&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;strong>Methodology&lt;/strong>&lt;/td>
+&lt;td>Separate component access (CLIP, U-Net, VAE Encoder/Decoder)&lt;/td>
+&lt;td>Conditional image-to-image generation is inherently modular, components must be accessed separate for img2img tasks&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;strong>Quality&lt;/strong>&lt;/td>
+&lt;td>Maintain human subject identity with high-fidelity&lt;/td>
+&lt;td>Core product requirement: failure to maintain character consistency leads to poor user experience.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;figcaption>
+&lt;strong>Table 1.&lt;/strong> Model specifications for my edge conditional image generation application
+&lt;/figcaption>
+&lt;/figure>
+&lt;h3 id="tiny-sd-starting-as-small-as-possible">Tiny SD: Starting as Small as Possible&lt;/h3>
+&lt;p>To establish a minimum viable quality baseline, I targeted the smallest available contender: &lt;a href="https://huggingface.co/segmind/tiny-sd" target="_blank" rel="noopener">Segmind&amp;rsquo;s Tiny SD&lt;/a>. As a 55% parameter reduction of Stable Diffusion, it is among the most aggressively compressed models from an established maintainer. Since it only consumed half of my tight 2GB iOS memory ceiling, it was the perfect, low-risk candidate to stress-test the absolute lower bound of acceptable quality and performance.&lt;/p>
+&lt;p>My next move was optimizing tiny SD for speed. I used &lt;a href="https://developer.apple.com/documentation/coreml" target="_blank" rel="noopener">CoreML&lt;/a> , Apple&amp;rsquo;s dedicated framework for integrating machine learning models into apps, to convert the weights into an &lt;a href="https://github.com/hollance/neural-engine" target="_blank" rel="noopener">Apple Neural Engine (ANE)&lt;/a> optimized format. The ANE is the dedicated hardware accelerator built into Apple Silicon, specifically designed to run on-device neural network inference with superior power efficiency. Meaning, if this works, I will be able to conditionally generate images without killing my phone&amp;rsquo;s battery.&lt;/p>
+&lt;p>In my initial test, I wanted to validate the model&amp;rsquo;s basic text-to-image (T2I) generation. To keep this assessment fair, I used the same text prompt Segmind provided in &lt;a href="https://huggingface.co/segmind/tiny-sd" target="_blank" rel="noopener">their model card&lt;/a>: &lt;code>&amp;quot;Portrait of a pretty girl&amp;quot;&lt;/code>. Despite my best efforts to meet the 40-second deadline (via 25-30 diffusion steps), the model failed quality control. Instead of images, I was left with psychedelic noise and low-fidelity artifacts (Figure 7).&lt;/p>
+&lt;figure style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+&lt;div style="display: flex; justify-content: center; gap: 10px;">
+&lt;div style="width: 45%;">
+&lt;img src="images/tiny_sd_simple_prompt.png" style="width: 100%;">
+&lt;div>(a)&lt;/div>
+&lt;/div>
+&lt;div style="width: 45%;">
+&lt;img src="images/tiny_sd_elaborate_prompt.png" style="width: 100%;">
+&lt;div>(b)&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;figcaption>
+&lt;strong> Figure 7. &lt;/strong> The samples illustrate Tiny SD's quality collapse. &lt;strong>(a)&lt;/strong> Default prompt at recommended &lt;a href="https://huggingface.co/docs/diffusers/en/using-diffusers/write_your_own_pipeline#classifier-free-guidance">guidance scale&lt;/a> (7.5). &lt;strong>(b)&lt;/strong> Enhanced prompt and an aggressive guidance (11.0) to force better prompt adherence. Both outputs were generated within the 25–30 step limit and exhibit severe artifacts and image distortions.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Despite the artifacts, rough semantic alignment remains: Fig. 7A shows a framed &amp;ldquo;portrait&amp;rdquo; of a woman and Fig. 7B renders a woman with &amp;ldquo;flowing hair.&amp;rdquo; Crucially, Figure 8 confirms the original Tiny SD model produces coherent, acceptable (if blurry) outputs. This performance gap strongly suggests our CoreML pipeline is sound, but the model weights are being corrupted during the conversion or loading process.&lt;/p>
+&lt;figure>
+&lt;img src="images/tiny_sd_readme_outputs.png" style="width: 60%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 8.&lt;/strong> Official examples of Tiny SD outputs. These samples confirm the original Tiny SD is capable of generating coherent, if slightly blurry, portraits of people (e.g., center-left image), establishing an acceptable quality baseline prior to CoreML conversion (&lt;a href="https://huggingface.co/segmind/tiny-sd">source&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>So, where did the weights go wrong? The corruption must have originated from one of these three technical suspects:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>Inference step requirements.&lt;/strong> Distilled models often require higher step counts for convergence than their parent models, a detail missing from the Tiny SD documentation. Our current $25-30$ steps may be too few.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>CoreML quantization precision loss.&lt;/strong> CoreML&amp;rsquo;s model packaging applies weight quantization (typically FP16 or mixed precision) that could compound errors in an already-distilled model, potentially degrading performance below acceptable limits.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>VAE decoder corruption during CoreML conversion.&lt;/strong> The VAE decoder is the model component most sensitive to weight corruption . It is a critical single point of failure because it performs the final, irreversible $64\times$ spatial upsampling. CoreML conversion might corrupt its transposed convolution weights, and (unlike the self-correcting U-Net) even the slightest VAE decoder corruption turns perfect latents into unusable outputs.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;!-- Validating this would require testing the decoder in isolation with known-good latents from PyTorch, which we didn't perform. -->
+&lt;p>Pinpointing the exact cause of corruption would require a costly series of controlled ablation studies on &lt;a href="https://huggingface.co/SG161222/Realistic_Vision_V4.0_noVAE" target="_blank" rel="noopener">the teacher PyTorch model&lt;/a>: testing step counts, comparing FP32 vs. FP16 precision, and measuring degradation at each CoreML conversion stage.&lt;/p>
+&lt;p>However, this investigation isn&amp;rsquo;t needed. This test already validates Tiny SD&amp;rsquo;s non-viability: I need CoreML/ANE compilation and a small number of diffusion steps to meet my strict sub-40-second latency budget. As seen, tiny SD can&amp;rsquo;t deliver under these constraints. It&amp;rsquo;s time to pivot to a model explicitly designed with Apple&amp;rsquo;s silicon in mind.&lt;/p>
+&lt;h3 id="coreml-stable-diffusion">CoreML Stable Diffusion&lt;/h3>
+&lt;p>The search for a viable replacement led me to Apple&amp;rsquo;s &lt;a href="https://github.com/apple/ml-stable-diffusion" target="_blank" rel="noopener">CoreML Stable Diffusion&lt;/a>. This is a professionally tuned implementation of &lt;a href="https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5" target="_blank" rel="noopener">Runway ML&amp;rsquo;s stable-diffusion-v1-5&lt;/a> (1.3B parameters) that&amp;rsquo;s compressed into ~1.5GB.&lt;/p>
+&lt;p>What makes this model viable where Tiny SD collapsed? Its key advantage is co-design with Apple&amp;rsquo;s hardware team. This grants engineers access to proprietary optimizations—like deep operator fusion and memory layout—to produce a calibrated FP16 model guaranteeing peak ANE performance unavailable through generic conversions. Crucially, this implementation is also battle-tested for iOS deployment, eliminating the risk of weight corruption I previously faced.&lt;/p>
+&lt;figure>
+&lt;img src="images/coreml-quick-test.png" style="width: 40%; height: auto;">
+&lt;figcaption>
+&lt;strong> Figure 9.&lt;/strong> Prototype testing. A generated image from the text prompt &lt;code>"A beautiful landscape with mountains and a lake, golden hour lighting"&lt;/code> using Apple’s CoreML Stable Diffusion model. The output is a high-quality, realistic rendering of a rustic mountain range at sunset.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>The trade-off is simple: I accept a ~1.5GB footprint (still well within budget) for a solution that guarantees production quality. Sometimes the &amp;ldquo;smallest&amp;rdquo; solution isn&amp;rsquo;t the best one. Hardware-aware optimizations at a reasonable scale beat model over-compression.&lt;/p>
+&lt;br/>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>In this post, we explored the tight constraints required to deliver a Nano Banana-like experience on the edge. Our initial exploration led us to select Apple&amp;rsquo;s CoreML Stable Diffusion model due its aggressive hardware co-design.&lt;/p>
+&lt;h3 id="whats-next">What&amp;rsquo;s next?&lt;/h3>
+&lt;p>Before we can attempt to replicate the Nano Banana experience on device, we first need to understand what problems Apple&amp;rsquo;s CoreML optimizations truly solved and which technical challenges remain. &lt;a href="../edge-diffusion-2/">My next blog post&lt;/a> covers exactly how Apple safely compressed a diffusion model that is so easy to corrupt.&lt;/p></description></item><item><title>Shrinking the Impossible (Part 4): Deploying My Own Pocket-Sized Multi-Modal Large Language Model</title><link>https://bellanich.github.io/post/edge-llm-app/</link><pubDate>Mon, 02 Dec 2024 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-llm-app/</guid><description>&lt;!-- Welcome 👋 -->
 &lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
 &lt;ul>
 &lt;li>&lt;a href="#table-of-contents">Table of Contents&lt;/a>&lt;/li>
