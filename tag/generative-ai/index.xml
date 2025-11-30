@@ -105,7 +105,7 @@
 &lt;/ul>
 &lt;p>Now, let’s see what all that work actually produces. Here’s the raw background Stable Diffusion generated before the subject gets composited back in (Figure 5).&lt;/p>
 &lt;figure>
-&lt;img src="images/2_generated_background.png" style="width: 50%; height: auto;">
+&lt;img src="images/2_generated_background.PNG" style="width: 50%; height: auto;">
 &lt;figcaption>
 &lt;strong>Figure 5.&lt;/strong> Stable Diffusion’s raw output for the prompt “outside in magical winter village at blue hour lighting, charming snow-covered cottage with glowing windows.” The scene is coherent, though not perfect, details like the opaque “window/door” remain ambiguous.
 &lt;/figcaption>
@@ -136,7 +136,7 @@ self.isProcessing = false
 &lt;h3 id="stage-3-compositing--style-filters-1s">Stage 3: Compositing &amp;amp; Style Filters (&amp;lt;1s)&lt;/h3>
 &lt;p>With the background generated, I&amp;rsquo;m ready to layer the isolated subject (Fig. 4a) into the new scene. I use &lt;a href="https://developer.apple.com/documentation/coregraphics" target="_blank" rel="noopener">Core Graphics&lt;/a> Apple&amp;rsquo;s low-level 2D rendering framework, to composite these two layers together. This process is fast, clean, and basically free in terms of runtime.&lt;/p>
 &lt;figure>
-&lt;img src="images/3_original_output.jpg" style="width: 100%; height: auto;">
+&lt;img src="images/3_original_output.JPG" style="width: 100%; height: auto;">
 &lt;figcaption>
 &lt;strong> Figure 7. &lt;/strong> Let's assume this concert photo of Sabrina Carpenter, performing onstage during the 67th Annual GRAMMY Awards, as our running example. Our goal is to transport her to a Winter Wonderland (&lt;a href="https://github.com/apple/ml-stable-diffusion">image credit&lt;/a>).
 &lt;/figcaption>
@@ -148,22 +148,22 @@ self.isProcessing = false
 &lt;!-- Row 1: Original + Pop Art -->
 &lt;div style="display: flex; justify-content: center; gap: 10px;">
 &lt;div style="width: 45%;">
-&lt;img src="images/3_vintage_output.jpg" style="width: 100%; height: auto;">
+&lt;img src="images/3_vintage_output.JPG" style="width: 100%; height: auto;">
 &lt;div style="margin-top: 5px; font-size: 0.7em; text-align: center;">(a) Vintage &lt;/div>
 &lt;/div>
 &lt;div style="width: 45%;">
-&lt;img src="images/3_pop_art_output.jpg" style="width: 100%; height: auto;">
+&lt;img src="images/3_pop_art_output.JPG" style="width: 100%; height: auto;">
 &lt;div style="margin-top: 5px; font-size: 0.7em; text-align: center;">(b) Pop Art&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;!-- Row 2: Posterize + Mosaic -->
 &lt;div style="display: flex; justify-content: center; gap: 10px;">
 &lt;div style="width: 45%;">
-&lt;img src="images/3_posterize_output.jpg" style="width: 100%; height: auto;">
+&lt;img src="images/3_posterize_output.JPG" style="width: 100%; height: auto;">
 &lt;div style="margin-top: 5px; font-size: 0.7em; text-align: center;">(c) Posterize&lt;/div>
 &lt;/div>
 &lt;div style="width: 45%;">
-&lt;img src="images/3_mosiac_output.jpg" style="width: 100%; height: auto;">
+&lt;img src="images/3_mosiac_output.JPG" style="width: 100%; height: auto;">
 &lt;div style="margin-top: 5px; font-size: 0.7em; text-align: center;">(d) Mosaic&lt;/div>
 &lt;/div>
 &lt;/div>
