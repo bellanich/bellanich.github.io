@@ -19,7 +19,7 @@ An example output of my pipeline. In the original image (left), I'm enjoying a s
 &lt;ul>
 &lt;li>&lt;a href="../../post/edge-diffusion-1/">Part 1: The Hunt for a Tiny, High-Quality Diffusion Model&lt;/a>&lt;/li>
 &lt;li>&lt;a href="../../post/edge-diffusion-2/">Part 2: Quantization, Kernels, and the Path to On-Device Diffusion&lt;/a>&lt;/li>
-&lt;li>&lt;a href="../../post/edge-diffusion-2/">Part 3: Frames Per Second (Part 3): Turning a Tiny Diffusion Model into a Traveling Photobooth&lt;/a>&lt;/li>
+&lt;li>&lt;a href="../../post/edge-diffusion-2/">Part 3: Turning a Tiny Diffusion Model into a Traveling Photobooth&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;p>The complete source code, benchmarks, and project notes are available on &lt;a href="https://github.com/bellanich/pocket-diffusion" target="_blank" rel="noopener">GitHub&lt;/a>. Sometimes it only takes a few frames per second to generate the image you want: no cloud, no fuss, no hassle.&lt;/p></description></item><item><title>Frames Per Second (Part 3): Turning a Tiny Diffusion Model into a Traveling Photobooth</title><link>https://bellanich.github.io/post/edge-diffusion-3/</link><pubDate>Wed, 26 Nov 2025 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-diffusion-3/</guid><description>&lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
 &lt;!-- - [Table of Contents](#table-of-contents) -->
