@@ -638,10 +638,10 @@ $$&lt;/p>
 &lt;strong> Figure 6.&lt;/strong> Nano Banana Pro was able to successfully generate the correct solutions, including doodles, for university-level Physics and Chemistry exam questions (&lt;a href="https://x.com/karpathy/status/1992655330002817095/photo/1">image credit&lt;/a>).
 &lt;/figcaption>
 &lt;/figure>
-&lt;p>This leaves us with a clear goal: replicate as much of this functionality as possible using open-source, on-device alternatives. Unfortunately, current mobile-friendly diffusion models more closely resemble 2021–2022 Stable Diffusion systems. They can produce coherent images, but they cannot match Nano Banana’s full range of abilities.&lt;/p>
+&lt;p>This leaves us with a clear goal: replicate as much of this functionality as possible using open-source, on-device alternatives. Unfortunately, current mobile-friendly diffusion models more closely resemble 2021–2022 Stable Diffusion systems.&lt;/p>
 &lt;br/>
 &lt;h2 id="the-model-search">The Model Search&lt;/h2>
-&lt;p>Since Nano Banana Pro&amp;rsquo;s advanced capabilities only emerge at massive scale, we have to accept two harsh realities:&lt;/p>
+&lt;p>Since Nano Banana Pro&amp;rsquo;s advanced capabilities only &lt;a href="https://arxiv.org/abs/2001.08361" target="_blank" rel="noopener">emerge at massive scale&lt;/a>, we have to accept two harsh realities:&lt;/p>
 &lt;ol>
 &lt;li>We have to rely on open-source, convertible models that often lag 6-12 months behind industry SOTA; and&lt;/li>
 &lt;li>The model we choose won&amp;rsquo;t have the same magical coherence of its cloud-scale counterparts.&lt;/li>
