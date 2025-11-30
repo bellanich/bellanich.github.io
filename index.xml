@@ -90,7 +90,7 @@ An example output of my pipeline. In the original image (left), I'm enjoying a s
 &lt;p>The final result is a lean, fully on-device conditional image generation pipeline that runs within an average of ~27 seconds. This puts me safely below my 60 second limit.&lt;/p>
 &lt;p>Now, let&amp;rsquo;s dive into the details. To demonstrate each stage&amp;rsquo;s output, we&amp;rsquo;ll successfully transport Sabrina Carpenter from the concert stage to a Winter Wonderland.&lt;/p>
 &lt;figure>
-&lt;img src="images/original_photo.png" style="width: 100%; height: auto;">
+&lt;img src="images/original_photo.jpg" style="width: 100%; height: auto;">
 &lt;figcaption>
 &lt;strong> Figure 3. &lt;/strong> Let's assume this concert photo of Sabrina Carpenter, performing onstage during the 2024 Coachella Valley Music and Arts Festival, as our running example. Our goal is to transport her to a Winter Wonderland (&lt;a href="https://www.gettyimages.com/detail/news-photo/sabrina-carpenter-performs-at-the-coachella-stage-during-news-photo/2149329158">image credit&lt;/a>).
 &lt;/figcaption>
@@ -102,11 +102,11 @@ An example output of my pipeline. In the original image (left), I'm enjoying a s
 &lt;figure style="display: flex; flex-direction: column; align-items: center; text-align: center;">
 &lt;div style="display: flex; justify-content: center; gap: 10px; align-items: flex-end;">
 &lt;div style="width: 45%; display: flex; flex-direction: column;">
-&lt;img src="images/1_isolated_subject.PNG" style="width: 100%; height: auto; max-height: 300px; object-fit: contain;">
+&lt;img src="images/1_isolated_subject.png" style="width: 100%; height: auto; max-height: 300px; object-fit: contain;">
 &lt;div style="margin-top: 5px; font-size: 0.75em;">(a)&lt;/div>
 &lt;/div>
 &lt;div style="width: 45%; display: flex; flex-direction: column;">
-&lt;img src="images/1_background_mask.PNG" style="width: 100%; height: auto; max-height: 300px; object-fit: contain;">
+&lt;img src="images/1_background_mask.png" style="width: 100%; height: auto; max-height: 300px; object-fit: contain;">
 &lt;div style="margin-top: 5px; font-size: 0.75em;">(b)&lt;/div>
 &lt;/div>
 &lt;/div>
