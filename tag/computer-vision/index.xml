@@ -205,7 +205,22 @@ self.isProcessing = false
 &lt;p>Splitting the process into Segment → Generate → Composite avoided the pitfalls of an all-in-one model. Segmentation preserved identity, SD produced high-quality backgrounds, and fast filters enabled rapid style iteration. Even if on-device disentangled-control were possible, the gains for the end user would be minimal. The modular workflow already delivers strong speed and consistency. This model has its limitations, but good system design works around them.&lt;/p>
 &lt;p>Of course, as base model improves, so does the space for smarter systems built around its new limits.&lt;/p>
 &lt;h2 id="conclusion">Conclusion&lt;/h2>
-&lt;p>I accomplished my original goal of building a Nano-Banana–style photobooth that runs entirely on-device. Along the way, I also ended up with a compact computer-vision playground ready for whatever comes next.&lt;/p>
+&lt;p>I accomplished my original goal of building a Nano-Banana–style photobooth that runs entirely on-device. Along the way, I also ended up with a compact computer-vision playground ready for whatever comes next (Figure 10).&lt;/p>
+&lt;figure style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+&lt;div style="display: flex; justify-content: center; gap: 10px; align-items: flex-end;">
+&lt;div style="width: 80%; display: flex; flex-direction: column;">
+&lt;img src="images/app-preview-1.PNG" style="width: 100%; height: auto; object-fit: contain;">
+&lt;div style="margin-top: 5px; font-size: 0.75em;">(a)&lt;/div>
+&lt;/div>
+&lt;div style="width: 80%; display: flex; flex-direction: column;">
+&lt;img src="images/app-preview-2.PNG" style="width: 100%; height: auto; object-fit: contain;">
+&lt;div style="margin-top: 5px; font-size: 0.75em;">(b)&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;figcaption style="margin-top: 15px;">
+&lt;strong>Figure 10.&lt;/strong> My custom iOS app acts as an edge computer vision playground. In this example, I transform Sabrina Carpenter's 2024 Governors Ball performance (&lt;a href="https://www.gettyimages.com/detail/news-photo/sabrina-carpenter-at-the-2024-governors-ball-held-at-news-photo/2156108404">image credit&lt;/a>) into an album-cover candidate. All image generation occurs on my iPhone 16's dedicated Neural Processing Unit.
+&lt;/figcaption>
+&lt;/figure>
 &lt;h3 id="future-directions">Future Directions&lt;/h3>
 &lt;p>From here, my options are boundless but they include: automating the tedious prompt engineering process using &lt;a href="https://arxiv.org/abs/2305.13301" target="_blank" rel="noopener">reinforcement learning techniques like DDPO&lt;/a>, trying to recreate some aspects of &lt;a href="https://arxiv.org/abs/2506.06802" target="_blank" rel="noopener">identity-preserving style transfer&lt;/a> on-device, or fine-tuning my tiny Stable Diffusion model with &lt;a href="https://huggingface.co/blog/lora" target="_blank" rel="noopener">LoRA adapters&lt;/a> so it knows why &lt;a href="https://www.npr.org/2025/09/10/nx-s1-5535826/sabrina-carpenter-mans-best-friend-charts" target="_blank" rel="noopener">Sabrina Carpenter is &amp;ldquo;Man&amp;rsquo;s Best Friend&amp;rdquo;&lt;/a>. I now have a solid foundation and free to explore what’s genuinely interesting.&lt;/p>
 &lt;h3 id="the-joy-of-building-small">The Joy of Building Small&lt;/h3>
