@@ -9,10 +9,19 @@ My hyper-optimized three-stage pipeline uses &lt;a href="https://github.com/appl
 &lt;/figure>
 &lt;p>That curiosity quickly launched this hands-on experiment. I challenged myself to run high-capacity, conditional image generation entirely on my iPhone&amp;rsquo;s hardware. Unfortunately, generative quality often breaks down at smaller scales: a tiny model is more likely to turn you into a distant cousin than your doppelgänger. To solve this, I engineered a two-step workflow that preserves subject identity while regenerating complex backgrounds and enforcing visual consistency (with some fun filters included). I initially benchmarked &lt;a href="https://huggingface.co/segmind/tiny-sd" target="_blank" rel="noopener">Segmind&amp;rsquo;s Tiny (~1GB) stable diffusion model&lt;/a> due to its tiny memory footprint, but it couldn&amp;rsquo;t generate high-quality outputs under our strict timing and hardware constraints.&lt;/p>
 &lt;p>The result is a fully on-device image transformation playground that tests the best of open-source conditional image generation.&lt;/p>
-&lt;figure>
-&lt;img src="images/demo.png" style="width: 50%; height: auto;">
-&lt;figcaption>
-An example output of my pipeline. In the original image (left), I'm enjoying a spectacular view at the &lt;a href="https://www.calacademy.org/exhibits/steinhart-aquarium">Steinhart Aquarium&lt;/a> in San Francisco. The conditional image generation (right) successfully transports me into a stylized, retro-futuristic poster for Balboa Park, San Diego.
+&lt;figure style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+&lt;div style="display: flex; justify-content: center; gap: 10px; align-items: flex-end;">
+&lt;div style="width: 80%; display: flex; flex-direction: column;">
+&lt;img src="images/app-preview-1.PNG" style="width: 100%; height: auto; object-fit: contain;">
+&lt;div style="margin-top: 5px; font-size: 0.75em;">(a)&lt;/div>
+&lt;/div>
+&lt;div style="width: 80%; display: flex; flex-direction: column;">
+&lt;img src="images/app-preview-2.PNG" style="width: 100%; height: auto; object-fit: contain;">
+&lt;div style="margin-top: 5px; font-size: 0.75em;">(b)&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;figcaption style="margin-top: 15px;">
+&lt;strong>Figure 2.&lt;/strong> My custom iOS app. In the &lt;a href="https://www.gettyimages.com/detail/news-photo/sabrina-carpenter-at-the-2024-governors-ball-held-at-news-photo/2156108404">original image&lt;/a>, Sabrina Carpenter is performing at the 2024 Governors Ball in Queens, New York. My stable diffusion pipeline successfully transports her to the interior of Balboa Park in San Diego, California. One final filter applies a stylized aesthetic, transforming the result into an album-cover candidate.
 &lt;/figcaption>
 &lt;/figure>
 &lt;p>For the full story, including technical details, check out my corresponding &lt;strong>&amp;ldquo;Frames Per Second&amp;rdquo; blog series&lt;/strong>:&lt;/p>
