@@ -237,7 +237,7 @@ self.isProcessing = false
 &lt;p>Splitting the process into Segment → Generate → Composite avoided the pitfalls of an all-in-one model. Segmentation preserved identity, SD produced high-quality backgrounds, and fast filters enabled rapid style iteration. Even if on-device disentangled-control were possible, the gains for the end user would be minimal. The modular workflow already delivers strong speed and consistency. This model has its limitations, but good system design works around them.&lt;/p>
 &lt;p>Of course, as base model improves, so does the space for smarter systems built around its new limits.&lt;/p>
 &lt;h2 id="conclusion">Conclusion&lt;/h2>
-&lt;p>I accomplished my original goal of building a Nano-Banana–style photobooth that runs entirely on-device. Along the way, I also ended up with a compact computer-vision playground ready for whatever comes next (Figure 10).&lt;/p>
+&lt;p>I accomplished my original goal of building a Nano-Banana–style photobooth that runs entirely on-device. Along the way, I also ended up with a compact computer-vision playground (Figure 10) ready for whatever comes next.&lt;/p>
 &lt;figure style="display: flex; flex-direction: column; align-items: center; text-align: center;">
 &lt;div style="display: flex; justify-content: center; gap: 10px; align-items: flex-end;">
 &lt;div style="width: 80%; display: flex; flex-direction: column;">
