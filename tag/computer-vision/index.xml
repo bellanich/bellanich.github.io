@@ -19,7 +19,8 @@
 &lt;ul>
 &lt;li>&lt;a href="#1-at-small-scales-hardware-aware-wins">1. At small scales, hardware-aware wins&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#2-if-your-prompt-loses-focus-stable-diffusion-will-too">2. If your prompt loses focus, Stable Diffusion will too&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#3-architecture-solves-capability-gaps">3. Architecture solves capability gaps&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#3-state-of-the-art-is-rarely-within-reach">3. State of the art is rarely within reach&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#4-architecture-solves-capability-gaps">4. Architecture solves capability gaps&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#conclusion">Conclusion&lt;/a>
@@ -195,17 +196,18 @@ self.isProcessing = false
 &lt;/figcaption>
 &lt;/figure>
 &lt;h2 id="lessons-from-the-edge">Lessons from the Edge&lt;/h2>
-&lt;p>When I started this project, I knew bringing the Nano Banana experience to mobile would be tough, but I just didn’t realize how tough. I learned four valuable lessons along the way:&lt;/p>
+&lt;p>When I started this project, I knew bringing the Nano Banana experience to mobile would be tough, but I didn&amp;rsquo;t realize exactly how tough. I learned four valuable lessons along the way:&lt;/p>
 &lt;h3 id="1-at-small-scales-hardware-aware-wins">1. At small scales, hardware-aware wins&lt;/h3>
 &lt;p>Users won’t accept bad images just because the model runs fast. Once we shrink diffusion, quality depends heavily on hardware we don’t control or fully understand. Apple’s vertical integration makes some optimizations look effortless, but replicating them from the outside is anything but.&lt;/p>
 &lt;h3 id="2-if-your-prompt-loses-focus-stable-diffusion-will-too">2. If your prompt loses focus, Stable Diffusion will too&lt;/h3>
-&lt;p>I learned quickly that mixing themes (e.g., Winter Wonderland + robots) just produces incoherent mush. Chaining prompts or tweaking denoising strength didn’t help either: high strength erased the scene, low strength lead to incoherent, blurry transformation.&lt;/p>
-&lt;p>Blending multiple semantic concepts is a completely different problem, one tackled by disentangled-control methods like &lt;a href="https://arxiv.org/abs/2302.05543" target="_blank" rel="noopener">ControlNet&lt;/a> and &lt;a href="https://arxiv.org/abs/2308.06721" target="_blank" rel="noopener">IP-Adapter&lt;/a>. But those techniques rely on extra conditioning modules that add hundreds of megabytes and several seconds of latency. That&amp;rsquo;s fine on a workstation, disastrous for a sub-30-second mobile experience.&lt;/p>
-&lt;h3 id="3-architecture-solves-capability-gaps">3. Architecture solves capability gaps&lt;/h3>
+&lt;p>I learned quickly that mixing themes (e.g., Winter Wonderland + robots) just produces incoherent mush. Chaining prompts or tweaking denoising strength didn’t help either: high strength erased the scene, low strength led to incoherent, blurry transformations.&lt;/p>
+&lt;h3 id="3-state-of-the-art-is-rarely-within-reach">3. State of the art is rarely within reach&lt;/h3>
+&lt;p>Blending multiple semantic concepts is a completely different problem, one tackled by disentangled control methods like &lt;a href="https://arxiv.org/abs/2302.05543" target="_blank" rel="noopener">ControlNet&lt;/a> and &lt;a href="https://arxiv.org/abs/2308.06721" target="_blank" rel="noopener">IP-Adapter&lt;/a>. But those techniques rely on extra conditioning modules that add hundreds of megabytes and several seconds of latency. That&amp;rsquo;s fine on a workstation, but disastrous for a sub-30-second mobile experience.&lt;/p>
+&lt;h3 id="4-architecture-solves-capability-gaps">4. Architecture solves capability gaps&lt;/h3>
 &lt;p>Splitting the process into Segment → Generate → Composite avoided the pitfalls of an all-in-one model. Segmentation preserved identity, SD produced high-quality backgrounds, and fast filters enabled rapid style iteration. Even if on-device disentangled-control were possible, the gains for the end user would be minimal. The modular workflow already delivers strong speed and consistency. This model has its limitations, but good system design works around them.&lt;/p>
-&lt;p>Of course, as base model improves, so does the space for smarter systems built around its new limits.&lt;/p>
+&lt;p>Of course, as the base model improves, smarter system design can push our application&amp;rsquo;s capabilities even further.&lt;/p>
 &lt;h2 id="conclusion">Conclusion&lt;/h2>
-&lt;p>I accomplished my original goal of building a Nano-Banana–style photobooth that runs entirely on-device. Along the way, I also ended up with a compact computer-vision playground (Figure 10) ready for whatever comes next.&lt;/p>
+&lt;p>I accomplished my original goal of building a Nano Banana styled photobooth that runs entirely on-device. Along the way, I also ended up with a compact computer vision playground (Figure 10) ready for future experimentation.&lt;/p>
 &lt;figure style="display: flex; flex-direction: column; align-items: center; text-align: center;">
 &lt;div style="display: flex; justify-content: center; gap: 10px; align-items: flex-end;">
 &lt;div style="width: 80%; display: flex; flex-direction: column;">
@@ -222,9 +224,9 @@ self.isProcessing = false
 &lt;/figcaption>
 &lt;/figure>
 &lt;h3 id="future-directions">Future Directions&lt;/h3>
-&lt;p>From here, my options are boundless but they include: automating the tedious prompt engineering process using &lt;a href="https://arxiv.org/abs/2305.13301" target="_blank" rel="noopener">reinforcement learning techniques like DDPO&lt;/a>, trying to recreate some aspects of &lt;a href="https://arxiv.org/abs/2506.06802" target="_blank" rel="noopener">identity-preserving style transfer&lt;/a> on-device, or fine-tuning my tiny Stable Diffusion model with &lt;a href="https://huggingface.co/blog/lora" target="_blank" rel="noopener">LoRA adapters&lt;/a> so it knows why &lt;a href="https://www.npr.org/2025/09/10/nx-s1-5535826/sabrina-carpenter-mans-best-friend-charts" target="_blank" rel="noopener">Sabrina Carpenter is &amp;ldquo;Man&amp;rsquo;s Best Friend&amp;rdquo;&lt;/a>. I now have a solid foundation and free to explore what’s genuinely interesting.&lt;/p>
+&lt;p>From here, my options are boundless, but they include: automating the tedious prompt engineering process using &lt;a href="https://arxiv.org/abs/2305.13301" target="_blank" rel="noopener">reinforcement learning techniques like DDPO&lt;/a>, recreating aspects of &lt;a href="https://arxiv.org/abs/2506.06802" target="_blank" rel="noopener">identity-preserving style transfer on-device&lt;/a> on-device, or fine-tuning my tiny Stable Diffusion model with &lt;a href="https://huggingface.co/blog/lora" target="_blank" rel="noopener">LoRA adapters&lt;/a> so it finally understands why &lt;a href="https://www.npr.org/2025/09/10/nx-s1-5535826/sabrina-carpenter-mans-best-friend-charts" target="_blank" rel="noopener">Sabrina Carpenter is &amp;ldquo;Man&amp;rsquo;s Best Friend.&amp;rdquo;&lt;/a> I now have a solid foundation and am free to explore genuinely interesting research questions.&lt;/p>
 &lt;h3 id="the-joy-of-building-small">The Joy of Building Small&lt;/h3>
-&lt;p>A GPU cluster would brute-force most of the problems I hit, edge constraints push me to invent better solutions. With tiny, local models, I skip cloud overhead, iterate faster, and avoid unwanted surprise bills. Starting at the bottom of &lt;a href="https://openai.com/index/scaling-laws-for-neural-language-models/" target="_blank" rel="noopener">the scale curve&lt;/a> is liberating: any capability I unlock here will only get stronger as the model scales. And in the end, the setup stays small, but the possibilities don’t.&lt;/p>
+&lt;p>A GPU cluster would brute-force most of the problems I hit. However, the edge constraints I encountered forced me to be more creative while providing the perfect environment for faster iteration. In the process, I also skipped the overhead of cloud engineering and those painful monthly bills. Starting at the bottom of &lt;a href="https://openai.com/index/scaling-laws-for-neural-language-models/" target="_blank" rel="noopener">the scale curve&lt;/a> is liberating: any capability I unlock here will only get stronger as the model scales. My setup stays small, but the possibilities don’t.&lt;/p>
 &lt;p>I’m excited to keep iterating on this work. If you want to dig into the details, the full implementation is on &lt;a href="https://github.com/bellanich/pocket-diffusion" target="_blank" rel="noopener">GitHub&lt;/a>. Questions, feedback, or wild ideas? Drop a comment or reach out on &lt;a href="https://www.linkedin.com/in/bella-nicholson/" target="_blank" rel="noopener">LinkedIn&lt;/a>. I always enjoy meeting people working at the edge of what&amp;rsquo;s possible — on-device or in the cloud.&lt;/p></description></item><item><title>Frames Per Second (Part 2): Quantization, Kernels, and the Path to On-Device Diffusion</title><link>https://bellanich.github.io/post/edge-diffusion-2/</link><pubDate>Tue, 25 Nov 2025 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-diffusion-2/</guid><description>&lt;!-- Welcome 👋 -->
 &lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
 &lt;!-- - [Table of Contents](#table-of-contents) -->
