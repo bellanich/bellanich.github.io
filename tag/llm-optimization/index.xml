@@ -1,0 +1,946 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>LLM Optimization | Bella Nicholson</title><link>https://bellanich.github.io/tag/llm-optimization/</link><atom:link href="https://bellanich.github.io/tag/llm-optimization/index.xml" rel="self" type="application/rss+xml"/><description>LLM Optimization</description><generator>Wowchemy (https://wowchemy.com)</generator><language>en-us</language><lastBuildDate>Mon, 02 Dec 2024 00:00:00 +0000</lastBuildDate><image><url>https://bellanich.github.io/images/icon_huc1af03d399f8074958ea0ac44dc20f74_179729_512x512_fill_lanczos_center_3.png</url><title>LLM Optimization</title><link>https://bellanich.github.io/tag/llm-optimization/</link></image><item><title>Shrinking the Impossible (Part 4): Deploying My Own Pocket-Sized Multi-Modal Large Language Model</title><link>https://bellanich.github.io/post/edge-llm-app/</link><pubDate>Mon, 02 Dec 2024 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-llm-app/</guid><description>&lt;!-- Welcome 👋 -->
+&lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="#table-of-contents">Table of Contents&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#introduction">Introduction&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#my-game-plan">My Game Plan&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#deployment">Deployment&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#attempt-1-deploying-my-multi-modal-model-as-an-ios-app">Attempt 1: Deploying my multi-modal model as an iOS app&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#what-if-the-mlc-chat-engine-supported-uploading-images">What if the MLC Chat Engine supported uploading images?&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#changing-directions">Changing Directions&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#attempt-2-deploying-my-multi-modal-model-as-a-python-cli">Attempt 2: Deploying my multi-modal model as a Python CLI&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#conclusion">Conclusion&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>If you&amp;rsquo;ve been following along in this blog post series, you know that I got a little too inspired at &lt;a href="https://developers.googleblog.com/en/bringing-the-io-magic-to-berlin/" target="_blank" rel="noopener">this year&amp;rsquo;s Google I/O Connect event&lt;/a>. After hearing about Google&amp;rsquo;s incredible feat of &lt;a href="https://support.google.com/pixelphone/community-guide/277503565/enable-gemini-nano-on-device-on-google-pixel-8-8a?hl=en" target="_blank" rel="noopener">embedding Gemini Nano into their Pixel 8 phones&lt;/a>, I&amp;rsquo;ve been not-so-patiently waiting for the open source community to release tools that make similar feats possible for solo developers like me. Fortunately, &lt;a href="https://llm.mlc.ai" target="_blank" rel="noopener">the Machine Learning Compiler (MLC) project&lt;/a> has matured enough that my dreams might just be possible.&lt;/p>
+&lt;p>Hence, I&amp;rsquo;ve been a personal quest to assess the limits of this new and exciting technology. To keep things interesting, I&amp;rsquo;ve decided to embed a multi-modal LLM. I want to test a less established setup, but I&amp;rsquo;m also secretly hoping to have a nice souvenir after everything is said and done. (Personally, I could really use a multi-lingual and multi-modal chatbot during my next holidays — especially once that doesn&amp;rsquo;t eat up my monthly data plan.)&lt;/p>
+&lt;p>At this point, I&amp;rsquo;m very close to this end goal. In &lt;a href="../edge-llm-mlc/">my first blog post in this series&lt;/a>, I introduced you to the MLC framework, which has been doing most of the heavy-lifting. I also gave you a quick crash course in what it takes to embed a large machine learning model on a resource-constrained device. In &lt;a href="../edge-llm-embed-llava/">the 2nd blogpost&lt;/a>, I gave you a primer on vision transformers — specifically, what we need to know to embed &lt;a href="https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf" target="_blank" rel="noopener">this tiny and multi-modal LLaVA-OneVision Qwen2 0.5B model&lt;/a>. In &lt;a href="../edge-llm-embed-llava/">my last blog post&lt;/a>, I used this LLaVA model as an example to show you how to extend the MLC framework to support a custom model definition.&lt;/p>
+&lt;p>After going through this entire process, I have a fully functional - but not very logical - LLaVA model running on my laptop. As the name suggests, this LLaVA model belongs to the high-performing, open source, and &lt;a href="https://llava-vl.github.io" target="_blank" rel="noopener">multi-modal Large Language and Vision Assistant (LLaVA) model family&lt;/a>. Fortunately, for us, this model has less than 0.5B parameters. Meaning, it should be small enough to squeeze onto an iPhone. Here&amp;rsquo;s what its chat conversations look like:&lt;/p>
+&lt;figure>
+&lt;img src="images/llava_makes_sense.png" width="60%">
+&lt;figcaption>
+At the start of a very simple discussion, my embedded LLaVA-OneVision model looks promising.
+&lt;/figcaption>
+&lt;/figure>
+&lt;figure>
+&lt;img src="images/llava_doesnt_make_sense.png" width="65%">
+&lt;figcaption>
+Unfortunately, it doesn't take too long to see the cracks in LLaVA's logical reasoning — and to watch them crumble.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Given this LLaVA model&amp;rsquo;s lack of coherence, we don&amp;rsquo;t want it talking directly to our end user. Rather, we&amp;rsquo;ll let it stick to what it does best (image annotation) and call in a slightly large LLM for backup.&lt;/p>
+&lt;h3 id="my-game-plan">My Game Plan&lt;/h3>
+&lt;p>So, what&amp;rsquo;s next? If you recall the diagram that I shared with you in the last time, I need to deploy a two-model ensemble. My plan is to use LLaVa-OneVision&amp;rsquo;s image annotation capabilities to expand &lt;a href="https://arxiv.org/pdf/2408.00118" target="_blank" rel="noopener">Gemma 2B&amp;rsquo;s ridiculously good conversational capabilities&lt;/a>. Essentially, LLaVA will describe the user provided image to Gemma in plain text. Gemma will receive the original user prompt and LLaVA&amp;rsquo;s image description. Between these two, Gemma should have enough information to return a lucid and logical response.&lt;/p>
+&lt;figure>
+&lt;img src="images/model_flowchart.png">
+&lt;figcaption>
+My multi-modal chat pipeline consists of two models: &lt;b>(1)&lt;/b> the eloquent and multilingual &lt;a href="https://huggingface.co/google/gemma-2b">Gemma2B model&lt;/a>, and &lt;b>(2)&lt;/b> a &lt;a href="https://llava-vl.github.io/blog/2024-08-05-llava-onevision/">mini LLaVA-OneVision model&lt;/a>. LLaVa will act as a translator for Gemma, generating a text descriptions for any provided images.
+&lt;/figcaption>
+&lt;/figure>
+&lt;h2 id="deployment">Deployment&lt;/h2>
+&lt;p>My original vision was to have an edge multi-modal embedded onto my iPhone. That way, I could chat with my personal travel assistant anytime and anywhere — no internet connection required.&lt;/p>
+&lt;h3 id="attempt-1-deploying-my-multi-modal-model-as-an-ios-app">Attempt 1: Deploying my multi-modal model as an iOS app&lt;/h3>
+&lt;p>Before I can package Gemma 2B and LLaVA together as a single model, I first need to figure out how to input images into MLC&amp;rsquo;s simple, pre-built chat iOS application, and this is where I run into my first roadblock.&lt;/p>
+&lt;p>If you&amp;rsquo;re observant, you might have noticed the grayed out text &amp;ldquo;Upload picture to chat&amp;rdquo; in my conversation screenshots with LLaVA. One could logically conclude that this means that MLC has some sort of user interface for uploading images. However, after pouring over the Swift code, I couldn&amp;rsquo;t find any such feature. Before I start cobbling something together in Swift, I decide to do a quick sanity check: Can I pass an image URL to the MLC Chat Engine?&lt;/p>
+&lt;p>Well&amp;hellip;not really. I&amp;rsquo;d have to go in deep to the MLC&amp;rsquo;s low code and Swift implementations to make that possible. That&amp;rsquo;s a rabbit hole that I don&amp;rsquo;t want to fall into, so it&amp;rsquo;s time for me to pivot directions.&lt;/p>
+&lt;h3 id="what-if-the-mlc-chat-engine-supported-uploading-images">What if the MLC Chat Engine supported uploading images?&lt;/h3>
+&lt;p>Let&amp;rsquo;s suppose that I was able to the the MLC Chat Engine iOS implementation so that it:&lt;/p>
+&lt;ol>
+&lt;li>It now supports serving images to models.&lt;/li>
+&lt;li>There&amp;rsquo;s a cool and sleek user interface for uploading said images.&lt;/li>
+&lt;/ol>
+&lt;p>Could I deploy any of the Apple products in my household? Well, I decided to do an initial test on my housemate&amp;rsquo;s iPad Pro 11 inch (V1). I copied over and downloaded my iOS app. While I was able to open the app&amp;rsquo;s homepage and start my conversation with Gemma 2B, the app would crash before I could even ask Gemma a followup question.&lt;/p>
+&lt;p>Perplexed, I checked my iOS app&amp;rsquo;s memory consumption in Xcode after I opened a new chat with Gemma. Well, it turns out that Gemma consumes a bit over 2GB of RAM. Given that this borrowed iPad only has 4GB of RAM in total, it&amp;rsquo;s not a surprise that the iOS application was crashing. Even when I closed all other applications, other background processes were consuming this iPad&amp;rsquo;s limited and valuable memory.&lt;/p>
+&lt;figure style="text-align: center;">
+&lt;div style="margin-bottom: 20px;">
+&lt;img src="images/gemma_memory.png" style="width: 95%; max-width: 900px;">
+&lt;div style="font-size: 16px; margin-top: 8px;">(a) Gemma 2B&lt;/div>
+&lt;/div>
+&lt;div>
+&lt;img src="images/llava_memory.png" style="width: 95%; max-width: 900px;">
+&lt;div style="font-size: 16px; margin-top: 8px;">(b) LLaVA-OneVision&lt;/div>
+&lt;/div>
+&lt;figcaption style="margin-top: 20px; font-size: 16px;">
+The memory footprints of my embedded Gemma 2B and LLaVA-OneVision models on my 8GB M2 MacBook Air.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>In contrast, the LLaVA-OneVision model has a much smaller memory footprint at 755MB. So, yes, it&amp;rsquo;s technically possible to deploy only the LLaVA-OneVision model on this given iPad; however, it&amp;rsquo;s probably not worth it. As we&amp;rsquo;ve seen from this blog post&amp;rsquo;s introduction, the embedded LLaVA-OneVision model isn&amp;rsquo;t capable of holding a coherent conversation for very long. Meaning, Gemma&amp;rsquo;s memory consumption is a definitive roadblock in my app ambitions.&lt;/p>
+&lt;p>As a final check, I tried the same exercise with my iPhone 13 and got similar results. This is expected, given that both devices have the same memory capacity. Of course, all the Apple devices I could find are on the older side. Apple&amp;rsquo;s newer iPhones and iPads have a large enough RAM that I should be able to deploy Gemma 2B and LLaVA-OneVision Qwen2 0.5B together.&lt;/p>
+&lt;figure>
+&lt;div style="padding-left: 250px; padding-right: 20px;">
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Device&lt;/th>
+&lt;th>Available RAM&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>iPhone X&lt;/td>
+&lt;td>3GB&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>iPhone 13&lt;/td>
+&lt;td>4G&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>iPad Pro V1&lt;/td>
+&lt;td>4G&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>iPhone 16&lt;/td>
+&lt;td>8G&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>iPad Air 6&lt;/td>
+&lt;td>8G&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;figcaption>Table 1: The RAM available on selected Apple products. The top 3 rows describe devices that I have immediate access to, while the last two describe Apple's latest iPhone and iPad offerings (&lt;a href="https://9to5mac.com/2023/11/18/iphone-ram-list/">source&lt;/a>).&lt;/figcaption>
+&lt;/figure>
+&lt;p>The available RAM on Apple&amp;rsquo;s latest iPhone and iPad models is a testament to its commitment to &lt;a href="https://www.apple.com/newsroom/2024/10/apple-intelligence-is-available-today-on-iphone-ipad-and-mac/" target="_blank" rel="noopener">cram AI tools and features into every part of the Apple user experience&lt;/a>. Of course, it&amp;rsquo;s also wild to think that the latest iPhone is just as computationally strong — at least in RAM — as my laptop. This also means that if I could feed images into the iOS MLC Chat Engine, then I should be able to very easily deploy my multi-modal model setup on an iPhone — just not my phone.&lt;/p>
+&lt;p>That being said, I&amp;rsquo;m not in a rush to get the latest iPhone. I just have something to look forward to when its inevitably time to replace my current one.&lt;/p>
+&lt;h3 id="changing-directions">Changing Directions&lt;/h3>
+&lt;p>At this point, I&amp;rsquo;ve ruled out the possibility of deploying my multi-modal foundation model on any Apple device, especially those within my immediate reach.&lt;/p>
+&lt;p>Now, I&amp;rsquo;m trying to contend with two different mysteries:&lt;/p>
+&lt;ol>
+&lt;li>Why does MLC natively support some LLaVA models, but doesn&amp;rsquo;t support serving images? The main added value of the LLaVA model family is their exceptional ability to handle multi-modal inputs.&lt;/li>
+&lt;li>Does the MLC Engine support serving a model images in any other platform-specific chat engine implementation?&lt;/li>
+&lt;/ol>
+&lt;p>Realistically, I don&amp;rsquo;t think that I&amp;rsquo;m going to get an answer to my first question unless I manage to chase down some of the &lt;a href="https://github.com/mlc-ai/mlc-llm/graphs/contributors" target="_blank" rel="noopener">MLC project&amp;rsquo;s main contributors&lt;/a>. Fortunately, the second question is easier to answer. If you recall from &lt;a href="../edge-llm-mlc/">my first blog post&lt;/a>, MLC implements their own version of &lt;a href="https://platform.openai.com/docs/api-reference/introduction" target="_blank" rel="noopener">OpenAI&amp;rsquo;s Python API&lt;/a>.&lt;/p>
+&lt;p>Since the original Python API supports serving images, there&amp;rsquo;s a good chance that the MLC implementation might offer the same functionality.&lt;/p>
+&lt;figure>
+&lt;img src="images/openai_image_url.png">
+&lt;figcaption>
+The Machine Learning Compiler bases their Python API off of OpenAI's well-established implementation. As we can see in the official OpenAI Python API documentation, the OpenAI implementation does support serving a model images (&lt;a href="https://platform.openai.com/docs/guides/fine-tuning#vision">source&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Sure enough, I look through when I look through the &lt;code>mlc-llm-cpu&lt;/code> library&amp;rsquo;s source code, I find the same &lt;code>image_url&lt;/code> variable in their conversation protocol definition.&lt;/p>
+&lt;pre>&lt;code class="language-python">class Conversation(BaseModel):
+...
+def as_prompt(self, config=None) -&amp;gt; List[Any]:
+...
+for item in content:
+assert isinstance(item, dict), &amp;quot;Content should be a string or a list of dicts&amp;quot;
+assert &amp;quot;type&amp;quot; in item, &amp;quot;Content item should have a type field&amp;quot;
+if item[&amp;quot;type&amp;quot;] == &amp;quot;text&amp;quot;:
+message = self.role_templates[role].replace(
+MessagePlaceholders[role.upper()].value, item[&amp;quot;text&amp;quot;]
+)
+message_list.append(message)
+# MLC supports passing image URLs via its Python API
+elif item[&amp;quot;type&amp;quot;] == &amp;quot;image_url&amp;quot;:
+assert config is not None, &amp;quot;Model config is required&amp;quot;
+image_url = _get_url_from_item(item)
+message_list.append(data.ImageData.from_url(image_url, config))
+message_list.append(&amp;quot;\n&amp;quot;)
+else:
+raise ValueError(f&amp;quot;Unsupported content type: {item['type']}&amp;quot;)
+message_list.append(separator)
+...
+return prompt
+&lt;/code>&lt;/pre>
+&lt;p>Meaning, I still can implement my multi-modal chat pipeline via a Python script.&lt;/p>
+&lt;br/>
+&lt;h3 id="attempt-2-deploying-my-multi-modal-model-as-a-python-cli">Attempt 2: Deploying my multi-modal model as a Python CLI&lt;/h3>
+&lt;p>At this point, I just want to see if I could successfully deploy the embedded multi-modal foundation model on some device that I own. So, I wrote a very simple Python script that lets a user interact with my chat pipeline via the commandline. If the user provides an image filepath, the model will check if it&amp;rsquo;s there. If so, underneath the hood, LLaVA is annotating this image for Gemma 2B. If not, my chatbot will kindly ask the user to check if the image is really there. Otherwise, Gemma 2B will be doing all the talking.&lt;/p>
+&lt;p>Here&amp;rsquo;s the end result:&lt;/p>
+&lt;figure>
+&lt;img src="images/demo.gif">
+&lt;figcaption>
+My embedded multi-modal model recognizes the cute, cartoon husky in the supplied photo. It's also capable of generating an interesting story synopsis for what could possibly become a new international bestseller.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>As you can see, the LLaVA model was able to recognize the Husky in the cartoon image and pass this information along to Gemma. Afterwards, Gemma was able to quickly help me draft an initial synopsis for about a day in the life of Barnaby, a sea-faring Husky who travels the world in his tiny yellow submarine. If we had a bit more compute power and a stronger LLaVA model, perhaps we could also extend this system to support image generation. If so, do think you &amp;ldquo;Barnaby&amp;rsquo;s Deep Sea Adventures&amp;rdquo; could become an international bestseller?&lt;/p>
+&lt;blockquote>
+&lt;p>For the exact source code used in this demo, please refer to &lt;a href="https://github.com/bellanich/pocket-llm/tree/main/src" target="_blank" rel="noopener">this blog post&amp;rsquo;s corresponding GitHub repository&lt;/a>.&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>It&amp;rsquo;s truly incredible seeing how quickly embedded systems technology has progressed in this domain. The tech giants are definitely in a comfortable place when it comes to deploying sophisticated edge foundation models, but the open source tooling is still in its early phase. Through this project, I&amp;rsquo;ve defined stumbled over a few vague, low-level code errors of my own. Tools like the MLC framework (in their current iteration) well-suited for those of us who are:&lt;/p>
+&lt;ol>
+&lt;li>Well-versed in the latest deep learning research&lt;/li>
+&lt;li>Comfortable debugging low code system errors&lt;/li>
+&lt;li>Reasonably proficient in Swift (or similar programming languages)&lt;/li>
+&lt;li>Own latest edge devices&lt;/li>
+&lt;/ol>
+&lt;p>Of course, that&amp;rsquo;s a lot of conditions. Nonetheless, it&amp;rsquo;s incredible seeing how projects like the Machine Learning Compiler have democratized access to foundation models. Whether you&amp;rsquo;re moonlighting as an entrepreneurial or are a curious university student, you can get easily started deploying your own single-modal LLMs on edge today. Maybe in another 6 months, the tooling will have advanced to the point that it fully supports multi-modal chat — including image generation.&lt;/p>
+&lt;p>In the meantime, I plan to watch these industry development closely. While I&amp;rsquo;ve put my hopes of a private, multi-modal travel assistant on the shelf, I haven&amp;rsquo;t abandoned them entirely. Stay tuned to see what I&amp;rsquo;ll do next. 👋&lt;/p></description></item><item><title>Shrinking the Impossible (Part 3): Embedding a Custom-Defined LLaVA-OneVision Model with MLC</title><link>https://bellanich.github.io/post/edge-llm-embed-llava/</link><pubDate>Sun, 01 Dec 2024 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-llm-embed-llava/</guid><description>&lt;!-- Welcome 👋 -->
+&lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="#table-of-contents">Table of Contents&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#introduction">Introduction&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#selected-architecture">Selected Architecture&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#why-not-only-use-the-llava-model">Why Not Only Use the LLaVA Model?&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#the-overall-process">The Overall Process&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#manual-porting-llava-onevision-to-mlc">Manual Porting LLaVA-OneVision to MLC&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#mlcs-clip-vs-our-selected-llava-siglip-implementation">MLC&amp;rsquo;s CLIP vs. Our Selected LLaVA SigLIP Implementation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#embedding-aggregation">Embedding Aggregation&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#output-features-explained">Output Features Explained&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#gelu-approximation">GELU Approximation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#embedding-normalization">Embedding Normalization&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#summary">Summary&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#packaging-our-custom-model">Packaging Our Custom Model&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#end-result">End Result&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#conclusion">Conclusion&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#whats-next">What&amp;rsquo;s next?&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>I attended this year&amp;rsquo;s &lt;a href="https://developers.googleblog.com/en/bringing-the-io-magic-to-berlin/" target="_blank" rel="noopener">Google I/O Connect in Berlin&lt;/a>, and seeing
+&lt;a href="https://ai.google.dev/edge" target="_blank" rel="noopener">Google’s latest work in Edge AI&lt;/a> was inspiring. Since then, I&amp;rsquo;ve been on a personal mission to deploy my own edge model. Given how rapidly the open source community is catching up with the tech giants in edge foundation models, I&amp;rsquo;ve decided test the limits of what I can realistically achieve as a solo developer. Can I embed a &lt;strong>multi-modal&lt;/strong> foundation model onto my iPhone?&lt;/p>
+&lt;p>In my &lt;a href="../edge-llm-mlc/">first blog post&lt;/a>, I&amp;rsquo;ve introduced the &lt;a href="https://llm.mlc.ai" target="_blank" rel="noopener">Machine Learning Compiler Project&lt;/a> as the open source solution that will make this possible. In my &lt;a href="../edge-llm-embed-llava/">last blog post&lt;/a>, I&amp;rsquo;ve given you the technical background knowledge needed to successfully deploy a multi-modal foundation model.&lt;/p>
+&lt;p>Now, we&amp;rsquo;re going to put this theory into practice in a hands-on activity. I&amp;rsquo;m going to show you how to embed a custom foundation model onto an edge device — and all the things that can go wrong in the process.&lt;/p>
+&lt;h3 id="selected-architecture">Selected Architecture&lt;/h3>
+&lt;p>Remember that my end vision is to have a multi-modal foundation model deployed on my iPhone. Ideally, I want it to be multi-lingual so I can get some help the next time that I&amp;rsquo;m lost in a foreign country.&lt;/p>
+&lt;p>At a high-level, my implementation will consist of two different models: &lt;strong>(a)&lt;/strong> the smallest &lt;a href="https://llava-vl.github.io" target="_blank" rel="noopener">Large Language and Vision Assistant (LLaVA)&lt;/a> model that I can find, and &lt;strong>(b)&lt;/strong> an &lt;a href="https://huggingface.co/google/gemma-2b" target="_blank" rel="noopener">instruction-tuned version of Gemma 2B&lt;/a>.&lt;/p>
+&lt;p>I&amp;rsquo;ve chosen these models, since &lt;strong>(a)&lt;/strong> the MLC Engine natively supports them, &lt;strong>(b)&lt;/strong> they&amp;rsquo;re lightweight enough to be compiled on my laptop, and &lt;strong>(c)&lt;/strong> their respective families have earned a reputation as high-performers.&lt;/p>
+&lt;p>Each model will work on a specific task. Whenever the end user shares an image with our multi-modal chatbot, the mini LLaVA model will generate a text description for Gemma. Gemma will then use this information to respond to the user&amp;rsquo;s original prompt. If no image is shared, our user will only interact with Gemma 2B. Of course, this model specialization will be abstracted away. Our user won&amp;rsquo;t be aware that they&amp;rsquo;re actually conversing with two different foundation models rather than just one.&lt;/p>
+&lt;figure>
+&lt;img src="images/model_flowchart.png">
+&lt;figcaption>
+My multi-modal chat pipeline consists of two models: &lt;b>(1)&lt;/b> the eloquent and multilingual &lt;a href="https://huggingface.co/google/gemma-2b">Gemma2B model&lt;/a>, and &lt;b>(2)&lt;/b> a mini &lt;a hred="https://llava-vl.github.io/blog/2024-08-05-llava-onevision/">LLaVA-OneVision model&lt;/a>. LLaVa will act as a translator for Gemma, generating a text description for any user inputted images.
+&lt;/figcaption>
+&lt;/figure>
+&lt;h4 id="why-not-only-use-the-llava-model">Why Not Only Use the LLaVA Model?&lt;/h4>
+&lt;p>It may sound a bit strange that we&amp;rsquo;re deploying two models instead of one — especially since all LLaVA understand text and images. However, we need to make a distinction between &lt;a href="https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf" target="_blank" rel="noopener">the smallest LLaVa-OneVision model&lt;/a>, which is less than 1B parameters in size, and &lt;a href="https://github.com/haotian-liu/LLaVA/blob/main/docs/MODEL_ZOO.md" target="_blank" rel="noopener">its much larger 7B+ counterparts&lt;/a>.&lt;/p>
+&lt;figure>
+&lt;img src="images/llava_model_stats.png" width="60%">
+&lt;figcaption>
+According to the 0.5B LLaVA-OneVision model card, the LLaVa model is just under 900M parameters in total. Given its 80,000+ model downloads, we can assume it does a decent job at its primary task: annotating images (&lt;a href="https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf">source&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Larger LLaVA models are perfectly capable of holding a coherent conversation and to understanding whatever images we show them. You can find a few interesting examples of large LLaVA models answering questions about images &lt;a href="https://llava-vl.github.io" target="_blank" rel="noopener">here&lt;/a>.&lt;/p>
+&lt;figure>
+&lt;img src="images/large_llava_chat.png">
+&lt;figcaption>
+&lt;a href="https://github.com/haotian-liu/LLaVA/blob/main/docs/MODEL_ZOO.md#llava-v16">The LLaVA-v1.6 series&lt;/a> contains models ranging from 7B to 34B parameters. At these sizes, a LLaVA model can easily identify Leonardo da Vinci's world famous masterpiece from a screenshot and give us a quick art history lesson. Unfortunately, we can't expect the same from the smallest LLaVA models. (&lt;a href="https://llava-vl.github.io">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>However, we need to adjust our expectations for a 900M parameter model. There&amp;rsquo;s only so much that a small model can do — and the LLaVA-OneVision Qwen2 O.5B model has been optimized for image annotation rather than instruction tasks. Meaning, we can probably converse directly with it, but may not be thrilled with the quality of its responses.&lt;/p>
+&lt;p>If we wanted to deploy a similar application in a cloud environment, then it would probably just make more sense to quantize a 7B LLaVA model and accept a slightly larger monthly bill. However, since we&amp;rsquo;re working on edge, we have tight resource constraints and need to make do with what we have.&lt;/p>
+&lt;h3 id="the-overall-process">The Overall Process&lt;/h3>
+&lt;p>For each model, we need to:&lt;/p>
+&lt;ol>
+&lt;li>Quantize its weights; and&lt;/li>
+&lt;li>Apply hardware-specific optimizations to it.&lt;/li>
+&lt;/ol>
+&lt;p>How simple this process really is comes down to the degree of built-in MLC Engine support. &lt;a href="https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC" target="_blank" rel="noopener">MLC has already pre-quantized an instruction-tuned version of Gemma 2B for us&lt;/a>. Hence, deploying Gemma as a stand alone model in an iOS application is relatively straightforward task. Just follow &lt;a href="https://llm.mlc.ai/docs/get_started/quick_start" target="_blank" rel="noopener">MLC&amp;rsquo;s Quick Start Documentation for how to package Gemma 2B&lt;/a> and &lt;a href="https://llm.mlc.ai/docs/deploy/ios.html#deploy-ios" target="_blank" rel="noopener">their iOS Swift SDK instructions&lt;/a>.&lt;/p>
+&lt;p>On the other hand, applying the same process to our LLaVA model is a bit trickier. If we go through &lt;a href="https://huggingface.co/mlc-ai" target="_blank" rel="noopener">the list of pre-quantized models offered by MLC&lt;/a>,(as of November 2024) there is no pre-quantized LLaVA model available — much less our desired mini LLaVA model.&lt;/p>
+&lt;p>Since this process for deployed a pre-quantized model from &lt;a href="https://huggingface.co" target="_blank" rel="noopener">HuggingFace&lt;/a> so well-documented, I&amp;rsquo;m not going to focus on it. Rather, I&amp;rsquo;ll show you how I ported a new model into the MLC framework.&lt;/p>
+&lt;h2 id="manual-porting-llava-onevision-to-mlc">Manual Porting LLaVA-OneVision to MLC&lt;/h2>
+&lt;p>At this point, you may be a bit confused. I&amp;rsquo;ve stated the MLC Engine supports LLaVA models, but I&amp;rsquo;m also talking about manually porting the 0.5B LLaVA-OneVision model into the MLC Framework.&lt;/p>
+&lt;p>What&amp;rsquo;s going on? At an initial glance, it looks like MLC fully supports &lt;a href="https://llava-vl.github.io" target="_blank" rel="noopener">the LLaVa model family&lt;/a>, but that&amp;rsquo;s only partially true. At the time of writing (November 2024), MLC only natively supports specific LLaVA implementations, more specifically those that use &lt;strong>(a)&lt;/strong> use &lt;a href="https://www.llama.com" target="_blank" rel="noopener">Llama&lt;/a> or &lt;a href="https://huggingface.co/mistralai/Mistral-7B-v0.1" target="_blank" rel="noopener">Mistral model&lt;/a> as its text decoder, and &lt;strong>(b)&lt;/strong> use a CLIP-trained vision encoder. Unfortunately, all LLaVA variants that meet these requirements are at 7B+ parameters. Meaning, they&amp;rsquo;re too large for my laptop — muchless my smartphone — to handle.&lt;/p>
+&lt;p>As a result, I need to manually port &lt;a href="https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf" target="_blank" rel="noopener">the much smaller &lt;code>llava-onevision-qwen2-0.5b-ov-hf&lt;/code> model definition&lt;/a> into the MLC framework. Practically speaking, this means defining this model in the style used in the &lt;code>mlc-llm-cpu&lt;/code> Python library, which is only available through &lt;a href="https://mlc.ai/wheels" target="_blank" rel="noopener">MLC AI&amp;rsquo;s own Python code repository&lt;/a>. Afterwards, we need to then recompile this library locally so that it contains our new model definition.&lt;/p>
+&lt;p>Once that&amp;rsquo;s done, I can quantize and hardware-optimize my selected LLaVA model just like any other MLC-supported model. As its full name suggests, the 0.5B LLaVA-OneVision model uses the &lt;a href="https://qwenlm.github.io/blog/qwen2/" target="_blank" rel="noopener">Qwen2 0.5B LLM&lt;/a> as its text decoder. Fortunately for us, MLC already supports Qwen2 0.5B implementation. Meaning, this change is quite easy. We just copy and paste MLC&amp;rsquo;s definition of LLaVA, rename the files, and change a few key-value pairs:&lt;/p>
+&lt;p>The original MLC LLaVA model definition looks like this:&lt;/p>
+&lt;pre>&lt;code class="language-python">from ..llama.llama_model import LlamaConfig, LlamaForCausalLM
+from ..mistral.mistral_model import MistralConfig, MistralForCasualLM
+CONFIG_MAP = {
+&amp;quot;LlamaForCausalLM&amp;quot;: LlamaConfig,
+&amp;quot;MistralForCausalLM&amp;quot;: MistralConfig,
+}
+ARCHITECTURE_MAP = {
+&amp;quot;LlamaForCausalLM&amp;quot;: LlamaForCausalLM,
+&amp;quot;MistralForCausalLM&amp;quot;: MistralForCasualLM,
+}
+&lt;/code>&lt;/pre>
+&lt;p>Now, we just rewrite our LLaVA-OneVision model definition to support &lt;a href="https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf/blob/main/config.json" target="_blank" rel="noopener">the LLaVA-OneVision Qwen2 0.5B model&amp;rsquo;s architecture definitions&lt;/a>:&lt;/p>
+&lt;pre>&lt;code class="language-python"># Defined by MLC
+from ..qwen2.qwen2_model import QWen2Config, QWen2LMHeadModel
+CONFIG_MAP = {
+&amp;quot;QWen2LMHeadModel&amp;quot;: QWen2Config,
+&amp;quot;Qwen2ForCausalLM&amp;quot;: QWen2Config
+}
+ARCHITECTURE_MAP = {
+&amp;quot;QWen2LMHeadModel&amp;quot;: QWen2LMHeadModel,
+&amp;quot;Qwen2ForCausalLM&amp;quot;: QWen2LMHeadModel,
+}
+&lt;/code>&lt;/pre>
+&lt;p>So far, so good. Let&amp;rsquo;s take a closer look at the &lt;a href="https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf/blob/main/config.json" target="_blank" rel="noopener">the 0.5B LLaVA-OneVision &lt;code>config.json&lt;/code> file&lt;/a>. We see that this LLaVA model&amp;rsquo;s vision encoder was trained using SigLIP — rather than MLC&amp;rsquo;s natively supported CLIP training framework.&lt;/p>
+&lt;figure>
+&lt;img src="images/llava_siglip.png" width="70%">
+&lt;figcaption>
+As seen in the LLaVA-OnVision Qwen2 0.5B model's configuration file, the vision encoder was trained using SigLIP. As of now (November 2024), MLC's only natively supports CLIP-trained vision encoder (&lt;a href="https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf">source&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Meaning, there&amp;rsquo;s no MLC definition for us to just import. We need to write some custom Python model definition using MLC wrappers. Luckily, we already dived into the details of the SigLIP vision encoder in &lt;a href="../edge-llm-vision-encoders/">the previous blog post&lt;/a>. So, we&amp;rsquo;re ready to get started.&lt;/p>
+&lt;p>I&amp;rsquo;ve included the final SigLIP vision encoder definition on &lt;a href="https://github.com/bellanich/pocket-llm/tree/main/models/patches" target="_blank" rel="noopener">in this blogpost series&amp;rsquo;s corresponding GitHub repository&lt;/a>. For the sake of brevity, I&amp;rsquo;m just going to focus on the technical differences between these two vision encoders and how these changes translate into code.&lt;/p>
+&lt;h3 id="mlcs-clip-vs-our-selected-llava-siglip-implementation">MLC&amp;rsquo;s CLIP vs. Our Selected LLaVA SigLIP Implementation&lt;/h3>
+&lt;p>Once again, we&amp;rsquo;re going to reference our LLaVA model&amp;rsquo;s trusty &lt;code>config.json&lt;/code> file to get some clues about where to start. In particular, we see the key-value pair: &lt;code>&amp;quot;vision_feature_layer&amp;quot;: -1&lt;/code>, whereas the original LLaVA config uses &lt;code>&amp;quot;vision_feature_layer&amp;quot;: -2&lt;/code>. This is a hint about how a vision encoder aggregates its sequence of embeddings into a single vector.&lt;/p>
+&lt;h3 id="embedding-aggregation">Embedding Aggregation&lt;/h3>
+&lt;p>Both LLaVA models use a Vision Transformer, which outputs a sequence of embeddings. For the training of CLIP and SigLIP, we need a single vector. In this specific Huggingface implementation, CLIP and SigLIP do this aggregation in different ways.&lt;/p>
+&lt;p>CLIP uses a &lt;em>class embedding&lt;/em>, similar to common adaptations of the &lt;a href="https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial15/Vision_Transformer.html" target="_blank" rel="noopener">Vision Transformer for classification&lt;/a>. Here, we add another token to each image sequence, which is fed through the Transformer along with the image tokens. In the end, we pick the aggregated image feature vector as the output of this classification token. By having the class token part of the self-attention layers, it gives the transformer the ability to aggregate information of the image in this token across its layers. In the implementation, we see this class embedding token being added to the image token sequence:&lt;/p>
+&lt;pre>&lt;code class="language-python">class CLIPVisionEmbeddings(Module):
+def __init__(self, config: CLIPVisionConfig):
+super().__init__()
+# Class Embedding Token, added to each image token sequence.
+self.class_embedding = nn.Parameter((self.embed_dim,))
+...
+def forward(self, pixel_values: Tensor) -&amp;gt; Tensor:
+patch_embeds = self.patch_embedding(pixel_values)
+...
+class_embeds = broadcast_to(
+self.class_embedding, shape=(batch_size, 1, self.embed_dim)
+)
+# Add class embedding token to image token sequence.
+embeddings = concat([class_embeds, patch_embeds], dim=1)
+...
+return embeddings
+&lt;/code>&lt;/pre>
+&lt;p>In contrast, SigLIP pools its output features. Hence, the sequence of image tokens remains unchanged in the input and is fed through the layers. We add on top a pooling layer over the sequence dimension to aggregate all the feature information. This can either be done by a simple averaging, or, in case our specific case, with a multi-head attention pooling. This is similar to our self-attention layers, but just with a fixed query.&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>Note.&lt;/strong> We&amp;rsquo;ve removed the code parts that are common to both models. This simplifies the code and allows us to highlight key differences.&lt;/p>
+&lt;/blockquote>
+&lt;p>In our SigLIP implementation, shown below, we see as a difference to CLIP that there is no class embedding.&lt;/p>
+&lt;pre>&lt;code class="language-python">class SiglipVisionEmbeddings(Module):
+def __init__(self, config: SiglipVisionConfig):
+super().__init__()
+...
+def forward(self, pixel_values: Tensor, interpolate_pos_encoding: bool = False) -&amp;gt; Tensor:
+patch_embeds = self.patch_embedding(pixel_values)
+embeddings = patch_embeds
+...
+return embeddings
+&lt;/code>&lt;/pre>
+&lt;h4 id="output-features-explained">Output Features Explained&lt;/h4>
+&lt;p>In &lt;a href="../edge-llm-vision-encoders/">the previous blog post&lt;/a>, we discuss how we need a whole sequence of image embeddings for LLaVA rather than a single image feature vector. This provides more detailed information to the decoder.&lt;/p>
+&lt;p>While we do not make use of the output heads of CLIP and SigLIP respectively, it does affect which layer we select our features from. This is what the config argument &lt;code>vision_feature_layer&lt;/code> ($-1$ for SigLIP and $-2$ for CLIP).&lt;/p>
+&lt;p>In other words, we choose the last layer in SigLIP, since the model was trained with image embeddings that are literally the weighted average of all image sequence tokens. Thus, the training process ensures that all these image embeddings have valuable information in them.&lt;/p>
+&lt;figure>
+&lt;img src="images/attention_example.svg">
+&lt;figcaption>
+Attention pooling represents a weighted average pooling, where the weights are determined by the normalized dot product between a static query and the keys per token. While this example shows the averaging for text tokens, it has the same idea with image patch tokens in our vision encoder (&lt;a href="https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial6/Transformers_and_MHAttention.html">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;pre>&lt;code class="language-python">class SiglipVisionModel(Module):
+def __init__(self, config: SiglipVisionConfig):
+super().__init__()
+self.vision_model = SiglipVisionTransformer(config)
+def forward(self, pixel_values: Tensor) -&amp;gt; Tensor:
+# Siglip Qwen2 is using last layer, CLIP pre-last due to different
+# Transformer encoder.
+return self.vision_model(pixel_values)[-1]
+&lt;/code>&lt;/pre>
+&lt;p>For CLIP, choosing the last layer is suboptimal, because of the usage of a class token. In the CLIP loss, only the output features of the class token are used. Thus, the output features of all other tokens, namely our image embeddings, were not used. In other words, these features did not receive any gradients during training, and we cannot be sure that the model has stored useful information in them. Most likely, the model has specialized the last layer specifically for the class embedding token, making the outputs of the other tokens (possibly) meaningless.&lt;/p>
+&lt;p>Hence, we need to go back one more layer (i.e, the pre-last layer), because these tokens did receive gradients during the training by their dependency on the class token in the last self-attention layer. This ensures that these embeddings have strong features and makes them usable in our LLaVA model implementation.&lt;/p>
+&lt;pre>&lt;code class="language-python">class CLIPVisionModel(Module):
+def __init__(self, config: CLIPVisionConfig):
+super().__init__()
+self.vision_model = CLIPVisionTransformer(config)
+def forward(self, pixel_values: Tensor) -&amp;gt; Tensor:
+return self.vision_model(pixel_values)[-2]
+&lt;/code>&lt;/pre>
+&lt;h3 id="gelu-approximation">GELU Approximation&lt;/h3>
+&lt;p>The &lt;a href="https://arxiv.org/abs/1606.08415" target="_blank" rel="noopener">Gaussian Error Linear Unit (GELU)&lt;/a> is a very popular activation function for Transformers, and is used in both of our CLIP and SigLIP implementations. However, there are some specific details in about how we can implement the GELU activation.&lt;/p>
+&lt;p>The &amp;ldquo;true&amp;rdquo;, precise implementation of GELU involves the cumulative distribution function (CDF) of the Gaussian distribution $\Phi(x)$:&lt;/p>
+&lt;center>
+&lt;p>$\text{gelu}(x)=x\cdot\Phi(x)$&lt;/p>
+&lt;/center>
+&lt;p>This CDF is, however, expensive to implement and in particular for edge-devices, where every inference optimization counts, it&amp;rsquo;s sub-optimal. Instead, people commonly use GeLU approximations that are good enough. The standard approximation, often used during training and in frameworks like &lt;a href="https://jax.readthedocs.io/en/latest/_autosummary/jax.nn.gelu.html" target="_blank" rel="noopener">JAX&lt;/a> and &lt;a href="https://pytorch.org/docs/stable/generated/torch.nn.GELU.html" target="_blank" rel="noopener">PyTorch&lt;/a>, is the tanh-approximation:&lt;/p>
+&lt;center>
+&lt;p>$\text{gelu}(x)\approx 0.5x\left(1+\tanh\left[\sqrt{\frac{2}{\pi}}(x+0.044715\cdot x^3)\right]\right)$&lt;/p>
+&lt;/center>
+&lt;p>This is also being used in the Huggingface implementation for SigLIP, and we port it over as shown below:&lt;/p>
+&lt;pre>&lt;code class="language-python">class QuickGELU(Module): # SigLIP implementation
+def forward(self, input_tensor: Tensor) -&amp;gt; Tensor:
+c = (2 / math.pi)**0.5
+return 0.5 * input_tensor * (
+1 + tanh(c * (input_tensor + 0.044715 * input_tensor**3))
+)
+&lt;/code>&lt;/pre>
+&lt;p>In the MLC implementation of CLIP, another approximation is used. This one involved the sigmoid function, and is simply:&lt;/p>
+&lt;center>
+&lt;p>$\text{gelu}(x)\approx x\cdot \sigma(1.702x)$&lt;/p>
+&lt;/center>
+&lt;p>CLIP&lt;/p>
+&lt;pre>&lt;code class="language-python">class QuickGELU(Module):
+def forward(self, input_tensor: Tensor) -&amp;gt; Tensor:
+return input_tensor * sigmoid(input_tensor * 1.702)
+&lt;/code>&lt;/pre>
+&lt;p>While the Sigmoid GeLU approximation is simpler and even cheaper to calculate, it is also less accurate. Thus, we have to make a tradeoff between efficiency and accuracy. Since we our selected SigLIP vision encoder was trained using the tanh-approximation, we&amp;rsquo;ll stick with it. Differences between &lt;a href="https://www.reddit.com/r/MachineLearning/comments/1bipsqj/p_how_i_found_8_bugs_in_googles_gemma_6t_token/" target="_blank" rel="noopener">the GeLU function implementation during training and inference time can cause a slight but noticeable drop in performance&lt;/a>.&lt;/p>
+&lt;figure style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+&lt;div style="display: flex; justify-content: center; gap: 10px;">
+&lt;img src="images/gelu_approximation_comparison.png" style="width: 45%;">
+&lt;img src="images/gelu_approximation_comparison_zoomed.png" style="width: 45%;">
+&lt;/div>
+&lt;figcaption>
+A visualization of the different implementations of the GELU activation function. The original GeLU function is in red, the tanh approximation is in purple, and the sigmoid approximation is in green. As you can see, all of them are quite similar. For the sigmoid activation, there is a noticeable difference for the negative range -1.5 and -4. However, for the tanh approximation, we need to zoom in closely to see the difference, showcasing why the tanh approximation is often used as a close match.
+&lt;/figcaption>
+&lt;/figure>
+&lt;h3 id="embedding-normalization">Embedding Normalization&lt;/h3>
+&lt;p>Another minor design choice is whether we normalize the embedding features before feeding them into the main Transformer model. Both models use the pre-activation Transformer implementation, which applies a &lt;code>LayerNorm &lt;/code> before each Self-Attention and MLP layer. However, we can also apply a LayerNorm on the embeddings themselves, or leave the model to learn the scaling of the residual part.&lt;/p>
+&lt;p>In the CLIP implementation, we find a LayerNorm applied to the embeddings before feeding it through the layers.&lt;/p>
+&lt;pre>&lt;code class="language-python">class CLIPVisionTransformer(Module):
+def __init__(self, config: CLIPVisionConfig):
+super().__init__()
+embed_dim = config.hidden_size
+self.embeddings = CLIPVisionEmbeddings(config)
+self.pre_layernorm = nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
+self.encoder = CLIPEncoder(config)
+self.post_layernorm = nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
+def forward(self, pixel_values: Tensor) -&amp;gt; Tensor:
+hidden_states = self.embeddings(pixel_values)
+hidden_states = self.pre_layernorm(hidden_states)
+encoder_outputs = self.encoder(inputs_embeds=hidden_states)
+return encoder_outputs
+&lt;/code>&lt;/pre>
+&lt;p>In contrast, in the SigLIP implementation, this normalization is missing. However, it is not expected to cause a major performance difference.&lt;/p>
+&lt;pre>&lt;code class="language-python">
+class SiglipVisionTransformer(Module):
+def __init__(self, config: SiglipVisionConfig):
+super().__init__()
+embed_dim = config.hidden_size
+self.embeddings = SiglipVisionEmbeddings(config)
+self.encoder = SiglipEncoder(config)
+# Defined but not actually used.
+self.post_layernorm = nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
+def forward(self, pixel_values: Tensor) -&amp;gt; Tensor:
+hidden_states = self.embeddings(pixel_values)
+encoder_outputs = self.encoder(inputs_embeds=hidden_states)
+return encoder_outputs
+&lt;/code>&lt;/pre>
+&lt;h3 id="summary">Summary&lt;/h3>
+&lt;p>Overall, our SigLIP implementation has some small, but crucial differences compared to MLC&amp;rsquo;S CLIP implementation. The table below summarizes the differences that we needed to account for.&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>MLC LLaVA Model - CLIP&lt;/th>
+&lt;th>0.5B LLaVA-OneVision Qwen2 0.5B Model - SigLIP&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Output Feature Aggregation&lt;/td>
+&lt;td>Class Token&lt;/td>
+&lt;td>Attention Pooling&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Feature Layer&lt;/td>
+&lt;td>Pre-Last Layer&lt;/td>
+&lt;td>Last Layer&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Embedding Normalization&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GELU Implementation&lt;/td>
+&lt;td>Sigmoid Approximation&lt;/td>
+&lt;td>Tanh Approximation&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Now that we&amp;rsquo;ve implemented SigLIP in the MLC framework, it is straight forward to integrate the LLaVA-OneVision models into the MLC framework. We can now proceed with quantizing and optimizing our model for deployment on an edge device.&lt;/p>
+&lt;h2 id="packaging-our-custom-model">Packaging Our Custom Model&lt;/h2>
+&lt;p>Once we&amp;rsquo;ve extended the &lt;code>mlc-llm-cpu&lt;/code> library to include our custom model definition, then we can proceed as normally.&lt;/p>
+&lt;p>First, we want to quantize it our newly ported LLaVA model. To do so, we run the following commands in our MLC LLM project&amp;rsquo;s repo directory:&lt;/p>
+&lt;pre>&lt;code class="language-bash"># Create directory
+mkdir -p dist/models &amp;amp;&amp;amp; cd dist/models
+# Clone Original LLaVA model's weights from HuggingFace
+git lfs install
+git clone https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf
+# Apply the `q4f16_1` quantization method to our model
+mlc_llm convert_weight ./dist/models/llava-onevision-qwen2-0.5b-ov-hf/ \
+--quantization q4f16_1 \
+-o dist/llava-onevision-qwen2-0.5b-ov-hf
+--model-type llava_onevision
+&lt;/code>&lt;/pre>
+&lt;p>Fortunately, the command ran successfully.&lt;/p>
+&lt;figure>
+&lt;img src="images/quantize_llava.png" width="100%">
+&lt;figcaption>
+After defining my target LLaVA-OneVision model as a new MLC `model-type`, I was able to easily quantize this model.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Next, we need to apply some hardware-specific optimizations to our model.&lt;/p>
+&lt;pre>&lt;code class="language-bash"># Generate a MLC config file for our quantized model
+mkdir dist/libs
+mlc_llm gen_config ./dist/models/llava-onevision-qwen2-0.5b-ov-hf/ \
+--quantization q4f16_1 \
+--conv-template redpajama_chat \
+--context-window-size 768 \
+-o dist/llava-onevision-qwen2-0.5b-ov-hf
+# Optimize LLaVA OneVision for an iOS app implementation
+mlc_llm compile ./dist/llava-onevision-qwen2-0.5b-ov-hf/mlc-chat-config.json \
+--device iphone \
+-o dist/libs/llava-onevision-qwen2-0.5b-ov-hf-iphone.tar
+&lt;/code>&lt;/pre>
+&lt;p>Finally, we need to package the quantized and optimized model for my iOS App. To make my life easier, I&amp;rsquo;ve uploaded the pre-quantized LLaVA-OneVision Qwen2 0.5B model to &lt;a href="https://huggingface.co/bella-nich/llava-onevision-qwen2-0.5b-ov-q4f16_1-mlc" target="_blank" rel="noopener">my personal HuggingFace account&lt;/a>.&lt;/p>
+&lt;p>My &lt;code>mlc-package-config.json file&lt;/code> located in the &lt;code>ios/MLCChat/&lt;/code> subdirectory (following &lt;a href="https://github.com/mlc-ai/mlc-llm" target="_blank" rel="noopener">MLC LLM&amp;rsquo;s project structure&lt;/a>) now looks like this:&lt;/p>
+&lt;pre>&lt;code>{
+&amp;quot;device&amp;quot;: &amp;quot;iphone&amp;quot;,
+&amp;quot;model_list&amp;quot;: [
+{
+&amp;quot;model&amp;quot;: &amp;quot;HF://bella-nich/llava-onevision-qwen2-0.5b-ov-q4f16_1-mlc&amp;quot;,
+&amp;quot;model_id&amp;quot;: &amp;quot;llava-onevision-qwen2-0.5b-ov-hf&amp;quot;,
+&amp;quot;estimated_vram_bytes&amp;quot;: 1000000000,
+&amp;quot;overrides&amp;quot;: {
+&amp;quot;prefill_chunk_size&amp;quot;: 128
+}
+},
+]
+}
+&lt;/code>&lt;/pre>
+&lt;p>So, I&amp;rsquo;m going to package my quantized and optimized LLaVA-OneVision model into a proper iOS app.&lt;/p>
+&lt;pre>&lt;code class="language-bash"># Words
+cd /path/to/MLCChat # e.g., &amp;quot;ios/MLCChat&amp;quot;
+export MLC_LLM_SOURCE_DIR=/path/to/mlc-llm # e.g., &amp;quot;../..&amp;quot;
+mlc_llm package
+&lt;/code>&lt;/pre>
+&lt;figure>
+&lt;img src="images/package_llava.png">
+&lt;figcaption>
+I was able to successfully package my newly ported LLaVA-OneVision Qwen2 0.5B model without any errors. Meaning, there's a chance that everything was quantized and compiled correctly.
+&lt;/figcaption>
+&lt;/figure>
+&lt;h2 id="end-result">End Result&lt;/h2>
+&lt;p>While the lack of compilation errors is promising, the only way to validate this entire process is talk to the embedded LLaVA model. So, I built and deployed my packaged iOS application.&lt;/p>
+&lt;p>Once I do, I&amp;rsquo;m greeted with a few strange but mostly understandable sentences.&lt;/p>
+&lt;figure>
+&lt;img src="images/llava_makes_sense.png" width="60%">
+&lt;figcaption>
+My embedded LLaVA-OneVision Qwen2 0.5B model is able to form mostly coherent sentences. However, its sense of humor doesn't seem fully developed.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>In other words, LLaVA isn&amp;rsquo;t pure spouting gibberish. I take this as a sign that the quantization and model compilation processes have gone well. Of course, as the longer the conservation goes on, the less coherent LLaVA becomes. Pretty soon LLaVA is giving me random responses strung together.&lt;/p>
+&lt;figure>
+&lt;img src="images/llava_doesnt_make_sense.png" width="65%">
+&lt;figcaption>
+After my dissatisfaction with the embedded model's sense of humor, I decided to see if LLaVA can tell me a fun fact. To my surprise, I'm greeted with a sudden and odd request.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>The chat snippets of &lt;code>&amp;lt;im_start&amp;gt;&lt;/code>, &lt;code>&amp;lt;im_end&amp;gt;&lt;/code>, and &lt;code>assistant&lt;/code> give us clues about how this LLaVA model was tuned for image annotation tasks. More specifically, this tells us about the structure of LLaVA-OneVision Qwen2 0.5 B&amp;rsquo;s &lt;a href="https://huggingface.co/docs/transformers/main/en/chat_templating" target="_blank" rel="noopener">chat template&lt;/a>. A chat template restructures our current conversation, which is a list of string, into a single, tokenizable format that the model expects. Here, we can see that the chat template &lt;code>assistant&lt;/code> role is prompting LLaVA to continue but in ways that are completely disconnected from my original text-only prompts.&lt;/p>
+&lt;p>The good news is that chat template &lt;code>assistant&lt;/code> role should be more useful when we provide LLaVA image inputs. However, this LLaVA model&amp;rsquo;s current performance (in a task that it wasn&amp;rsquo;t fine-tuned for) highlights the differences between &amp;gt;1B and a 7B+ parameter models. Larger foundation models are simply more versatile than smaller ones.&lt;/p>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>In this blogpost, I&amp;rsquo;ve shown you everything that it takes to embed an unsupported model onto an edge device using the Machine Learning Engine Compiler framework. As you can see, the devil is in the details. You need to be well-versed in the different permutations of a given neural architecture&amp;rsquo;s implementation and able to spot those differences in the wild.&lt;/p>
+&lt;p>Of course, the only thing that&amp;rsquo;s more important than getting this process right is to choose the correct model to embed. The smaller we go in size, the more portable our foundation model becomes, but that portability comes at the cost of performance.&lt;/p>
+&lt;h3 id="whats-next">What&amp;rsquo;s next?&lt;/h3>
+&lt;p>While embedding a custom model is an exciting milestone, we&amp;rsquo;re not done yet. As you can see, the embedded LLaVA model works but it doesn&amp;rsquo;t make for a scintillating conversation partner. Hence, we need to get Gemma 2B and the LLaVA-OneVision Qwen2 0.5B model to work together — which is exactly what I do in &lt;a href="../edge-llm-app/">my next (and final) blogpost in this series&lt;/a>. Stay tuned!&lt;/p></description></item><item><title>Shrinking the Impossible (Part 2): Teaching Chatbots to See with LLaVA, CLIP, and SigLIP</title><link>https://bellanich.github.io/post/edge-llm-vision-encoders/</link><pubDate>Sat, 30 Nov 2024 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-llm-vision-encoders/</guid><description>&lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="#table-of-contents">Table of Contents&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#introduction">Introduction&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#llava-chatbots-that-can-see">LLaVA: Chatbots That Can &amp;ldquo;See&amp;rdquo;&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#visual-instruction-tuning-of-text-decoders">Visual Instruction Tuning of Text Decoders&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#vision-encoders">Vision Encoders&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#training-the-vision-encoder">Training the Vision Encoder&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#clip">CLIP&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#siglip">SigLIP&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#inference">Inference&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#machine-learning-compiler-implementation">Machine Learning Compiler Implementation&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#the-llava-model-family-on-mlc">The LLaVA Model Family on MLC&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#llava-onevision">LLaVA OneVision&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#conclusion">Conclusion&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#whats-next">What&amp;rsquo;s next?&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>In &lt;a href="../edge-llm-mlc/">my last blog post&lt;/a>, I introduced you to the fascinating world of edge foundation models. I was dreaming big, imagining a foundation model that could &amp;ldquo;see&amp;rdquo; — well, at least understand the photos I share with it. Let&amp;rsquo;s be honest, I’ll probably need some help when I’m lost in a new city on my next vacation. A model that understands both text and images? Way more useful when I&amp;rsquo;m wandering around than a single-modal chatbot!&lt;/p>
+&lt;p>Recently, things have been getting pretty exciting in the world of multi-modal models. Beyond just text and images, &lt;a href="https://openai.com/index/chatgpt-can-now-see-hear-and-speak/" target="_blank" rel="noopener">ChatGPT can now &amp;ldquo;see, hear, and speak&amp;rdquo;&lt;/a> — processing text, images, and audio. There&amp;rsquo;s also &lt;a href="https://deepmind.google/technologies/gemini/" target="_blank" rel="noopener">Gemini&lt;/a>, Google’s latest powerhouse, which can process everything from text to images to audio — &lt;a href="https://deepmind.google/technologies/gemini/pro/" target="_blank" rel="noopener">and even long movies, thanks to its multi-million token context window&lt;/a>. Sounds pretty impressive, right? But here&amp;rsquo;s the catch: these models are so large and computationally demanding that it’s nearly impossible to run them on edge devices (like phones and laptops).&lt;/p>
+&lt;p>In this blog post, we’ll explore some of the latest advancements in small, efficient multi-modal models that can actually be deployed on edge devices. We&amp;rsquo;ll introduce the &lt;a href="https://llava-vl.github.io/" target="_blank" rel="noopener">LLaVA&lt;/a> &lt;a href="https://huggingface.co/llava-hf" target="_blank" rel="noopener">model family&lt;/a>, which combines vision encoders and text decoders to provide a general-purpose multi-modal chatbot.&lt;/p>
+&lt;figure>
+&lt;img src="images/llava_v1_5_performance.jpg" width="70%">
+&lt;figcaption>
+The LLaVA model family stands out as a high-performance, open-source collection of models. Upon its release, the LLaVA-1.5 series achieved state-of-the-art (SoTA) performance across 11 benchmarks (&lt;a href="https://github.com/haotian-liu/LLaVA/blob/main/docs/MODEL_ZOO.md#llava-v15">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>We’ll also take a closer look at the architecture behind LLaVA—specifically the vision encoders and text decoders that make it work. This includes the popular CLIP and SigLIP training frameworks.&lt;/p>
+&lt;p>Understanding how these models work lays the groundwork for &lt;a href="../edge-llm-embed-llava/">my next blog post&lt;/a>.&lt;/p>
+&lt;br/>
+&lt;h2 id="llava-chatbots-that-can-see">LLaVA: Chatbots That Can &amp;ldquo;See&amp;rdquo;&lt;/h2>
+&lt;p>The LLaVA model family is a collection of vision-language models that use pre-trained Vision Encoders to give pre-trained Large Language Models (LLMs) the ability to understand images. Why all the pre-training? Well, pre-trained models help keep training costs low while still leveraging the latest in foundation model technology.&lt;/p>
+&lt;p>This combination of pre-trained models has made LLaVA models increasingly popular for multi-modal tasks. These models — &lt;a href="https://huggingface.co/llava-hf/bakLlava-v1-hf" target="_blank" rel="noopener">some named more creatively than others&lt;/a> — are open-sourced in various sizes, ranging from 0.5B to 13B parameters.&lt;/p>
+&lt;figure>
+&lt;img src="images/bakllava_model_card.png" width="80%">
+&lt;figcaption>
+Most LLaVA models are named after their base transformer architectures, but this one has been named after a beloved Turkish delicacy (&lt;a href="https://huggingface.co/llava-hf/bakLlava-v1-hf">source&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Don’t forget that the &lt;a href="https://llm.mlc.ai" target="_blank" rel="noopener">Machine Learning Compiler (MLC) Engine&lt;/a> (introduced in &lt;a href="../edge-llm-mlc/">my last blog post&lt;/a>) supports quantizing LLaVA models. In other words, the smallest LLaVA models are promising candidates for my edge multi-modal ambitions.&lt;/p>
+&lt;h3 id="visual-instruction-tuning-of-text-decoders">Visual Instruction Tuning of Text Decoders&lt;/h3>
+&lt;p>Before we jump into how LLaVA works its magic, let’s take a quick look at how plain text-based LLMs operate. A typical Large Language Model (LLM) begins by breaking your input text into discrete units called &lt;strong>tokens&lt;/strong> using a tokenizer. These tokens are then transformed into high-dimensional embeddings — essentially numerical representations the model can &amp;ldquo;understand&amp;rdquo;. The embeddings pass through multiple layers of self-attention mechanisms and feed-forward neural networks, which process the information and predict the next token in the sequence. This process continues iteratively until the model generates the desired output text.&lt;/p>
+&lt;p>But here’s the challenge: when it comes to multi-modal tasks, like combining images and text, your traditional text-based LLM hits a wall — it simply can’t “see”. To fix this, we bring in vision encoders. Vision encoders translate images into embeddings, a deep learning model&amp;rsquo;s &amp;ldquo;native language&amp;rdquo;. Afterwards, a text decoder translates these embeddings into an output text based on both the image and the text input. We align the feature space of the vision encoder with the LLM by adding a trainable linear projection layer on top of the vision embeddings. By fine-tuning the text decoder on a multi-modal dataset, the model learns to generate text that is relevant to the input image.&lt;/p>
+&lt;figure>
+&lt;center>
+&lt;img src="images/llava_onevision.png"/>
+&lt;/center>
+&lt;figcaption> The LLaVA model family combines a vision encoder with a text decoder to generate human-like text based on images. The vision encoder converts images into embeddings, which are then fed into the text decoder as a visual instruction to generate the output text (&lt;a href="[url](https://arxiv.org/abs/2408.03326)">source&lt;/a>).&lt;/figcaption>
+&lt;/figure>
+&lt;p>This approach is called &lt;strong>&lt;a href="https://arxiv.org/abs/2304.08485" target="_blank" rel="noopener">Visual Instruction Tuning&lt;/a>&lt;/strong>. If you’re familiar with Instruction Tuning, it’s the same idea with a multi-modal twist. In regular instruction tuning, you give the model a text instruction (“Summarize this paragraph”) and train it to produce the desired text output. Visual Instruction Tuning swaps that text instruction for an image. The goal? Train the model to generate text that describes or explains the image.&lt;/p>
+&lt;p>For example, LLaVA models are trained on datasets that pair images with captions or multi-modal Q&amp;amp;A examples. This forces them to become fluent in both visual and linguistic cues. In these finetuning setups, we commonly keep the vision encoder fixed and only fine-tune the text decoder and projection layer on the multi-modal dataset. his way, we can leverage the pre-trained vision encoder to understand images without the need for additional training data, while also benefiting from the power of the pre-trained LLM to generate human-like text.&lt;/p>
+&lt;h3 id="vision-encoders">Vision Encoders&lt;/h3>
+&lt;p>Essentially, Visual Instruction Tuning swaps out text instructions for images and teach the model to generate text based on what it “sees.” But there’s a big question here: how do we get an image - essentially a 2D grid of pixels — to become compatible with a token-consuming text-based model? While Convolutional Neural Networks (CNNs) have traditionally excelled at extracting features from images, Vision Transformers have shown promising results in processing images as sequences of tokens, similar to text.&lt;/p>
+&lt;p>Here’s how it works: we divide up an image into smaller, fixed-size patches rather processing it all at once. Each patch is then flattened and mapped into a high-dimensional feature space — a numerical representation that captures the patch’s visual characteristics. To make sure the model doesn’t lose track of where these patches belong in the image, we add positional encodings. A Vision Transformer then consumes these location-annotated image patches, processing them through multiple layers of self-attention and feed-forward neural networks.&lt;/p>
+&lt;p>This process allows the model to understand the relationships between different parts of the image and distill its content into a sequence of semantically meaningful embeddings. This sequence of embeddings is particularly compatible with classical LLMs because it mirrors the token-like structure LLMs expect for text. Thus, the combination of Vision Transformers with Text Decoders gives us high-functioning multi-modal models.&lt;/p>
+&lt;p>If you want to learn about Vision Transformers in more detail, I recommend taking a closer look at the &lt;a href="https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial15/Vision_Transformers.html" target="_blank" rel="noopener">University of Amsterdam&amp;rsquo;s Deep Learning Tutorials&lt;/a>. For now, let&amp;rsquo;s focus on the training frameworks for vision encoders, as they are crucial for the performance of the final LLaVA model.&lt;/p>
+&lt;h3 id="training-the-vision-encoder">Training the Vision Encoder&lt;/h3>
+&lt;p>The quality of the final multi-modal LLaVA model heavily depends on the quality of its vision encoder. This is why it is crucial to train the vision encoder on a diverse and large-scale dataset to ensure that it can understand a wide range of images. Two popular training frameworks for vision encoders are CLIP and SigLIP. We describe both of them in a bit more detail here, since we need this knowledge to properly imbed a LLaVA model onto an edge device.&lt;/p>
+&lt;h4 id="clip">CLIP&lt;/h4>
+&lt;p>&lt;a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener">Contrastive Language-Image Pre-training (CLIP)&lt;/a> is a pre-training framework that teaches the vision encoder to understand images by associating them with text descriptions. Here’s the gist: CLIP trains the vision encoder to predict what the image means using a text description, and vice versa, to predict the image from a text description. By doing this, the model essentially learns a shared “language” that lets it understand both images and text.&lt;/p>
+&lt;p>CLIP has been shown to achieve state-of-the-art performance on a wide range of vision tasks, making it a popular choice for vision encoders in multi-modal models, in particular due to its alignment of the vision and text feature spaces.&lt;/p>
+&lt;figure>
+&lt;center>
+&lt;img src="images/clip_diagram.svg"/>
+&lt;/center>
+&lt;figcaption> CLIP trains vision encoders to predict image representations that align with text representations of their respective caption. By doing so contrastively over many image-text pairs in a batch, the vision encoder learns strong, semantic image embeddings (&lt;a href="[url](https://arxiv.org/abs/2103.00020)">source&lt;/a>).&lt;/figcaption>
+&lt;/figure>
+&lt;center>
+&lt;/center>
+&lt;p>A key aspect in CLIP is its use of &lt;strong>contrastive learning&lt;/strong>, where the model is trained to maximize the similarity between positive pairs (image-text pairs that belong together) and minimize the similarity between negative pairs (image-text pairs that do not belong together).&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>Example.&lt;/strong> The vision encoders learns to match positive pairs (like a picture of a dog with a caption saying &amp;ldquo;a dog&amp;rdquo;) and push apart negative pairs (like a picture of a dog with a caption saying &amp;ldquo;a cat&amp;rdquo;).&lt;/p>
+&lt;/blockquote>
+&lt;p>The similarity is measured by a softmax, which is applied over the dot products between the representation spaces. This allows the model to learn a discriminative representation space that captures the semantic content of images and text.&lt;/p>
+&lt;p>While this approach is intuitive, it doesn&amp;rsquo;t scale well. For large representation spaces, we need large batch sizes to effectively capture a large variety of (negative) image-text pairs and improve the training process. This raises challenges in CLIP, in particular with the softmax. To calculate the CLIP loss, we need to apply the batch-level softmax twice to normalize the pairwise similarity scores across all images for training the text encoder, and across all texts for training the image encoder. These passes over the full batch size can be computationally expensive, especially when the batch size is sharded across multiple devices.&lt;/p>
+&lt;p>In a distribution training setup, we are often using data parallelism, where each device processes a part of the batch. While commonly, each device can do the forward and backward pass independently and only the final gradients are communicated, CLIP needs to already communicate the softmax statistics for the loss between all devices. This creates an efficiency bottleneck, especially when we scale to many devices. This bottleneck prevents CLIP from being scaled efficiently, and it&amp;rsquo;s the exact problem SigLIP solves.&lt;/p>
+&lt;h4 id="siglip">SigLIP&lt;/h4>
+&lt;p>The &lt;a href="https://arxiv.org/abs/2303.15343" target="_blank" rel="noopener">Sigmoid Loss for Language Image Pre-Training (SigLIP)&lt;/a> replaces the softmax in CLIP with a sigmoid loss, which is applied element-wise to the dot products between the image and text representations. The loss objective is then closer to standard &lt;em>predictive learning&lt;/em> with binary cross entropy, training the positive pairs to be $1$ while negative ones are pushed closer to $0$. This allows the model to train on a large batch size without the need for full-batch softmax computation, making it more efficient and scalable.&lt;/p>
+&lt;p>SigLIP has been shown to achieve similar or even better performance to CLIP, in particular for smaller datasets of image-caption pairs. Furthermore, SigLIP is more computationally efficient at scale, making it a popular choice for training strong vision encoders in multi-modal models.&lt;/p>
+&lt;h3 id="inference">Inference&lt;/h3>
+&lt;p>Once the vision encoder is trained, we can use it to generate embeddings for images. However, both CLIP and SigLIP train single-vector representations, meaning that the image is represented by a single vector. This is not ideal for multi-modal models, as we want to generate a sequence of embeddings that can be fed into the text decoder. Furthermore, a single vector representation may not capture the full content of the image.&lt;/p>
+&lt;p>To address this, we can use the internal representations of the Vision Encoder, which is commonly a Vision Transformer, to extract a sequence of embeddings for the image. This allows us to capture a more detailed representation of the image, which can be used by the text decoder to generate more accurate and detailed text descriptions. This is a key aspect of the LLaVA model family, which combines the power of Vision Transformers with Large Language Models to generate human-like text based on images.&lt;/p>
+&lt;p>In &lt;a href="../edge-llm-embed-llava/">the next blogpost&lt;/a>, we will see that there are actually several variations on how a Vision Transformer can be implemented in the CLIP and SigLIP frameworks (e.g. using a separate class embedding, pooling, etc.). These variations can have a significant impact on the performance of the final LLaVA model and require adjusting the model architecture accordingly. Hence, it is important to carefully consider them when implementing your own LLaVA model.&lt;/p>
+&lt;br/>
+&lt;h2 id="machine-learning-compiler-implementation">Machine Learning Compiler Implementation&lt;/h2>
+&lt;p>Now that we are familiar with the LLaVA model family and the vision encoders used in these models, let&amp;rsquo;s discuss how we can deploy these models on edge devices. As we have introduced in &lt;a href="../edge-llm-mlc/">Part 1 of this blog post series&lt;/a>, we use &lt;a href="https://llm.mlc.ai" target="_blank" rel="noopener">the Machine Learning Compiler (MLC) project&lt;/a> for on-edge deployment. MLC aims to optimize and compile deep learning models for edge devices, enabling efficient and fast inference on resource-constrained hardware. MLC supports a wide range of deep learning models, including LLaVA models, making it a powerful tool for deploying multi-modal models on edge devices.&lt;/p>
+&lt;h3 id="the-llava-model-family-on-mlc">The LLaVA Model Family on MLC&lt;/h3>
+&lt;p>Out of the box, the MLC LLM supports the quantization of the LLaVA family of vision encoders and text decoders. For this, the LLaVA implementation of the &lt;a href="https://huggingface.co/docs/transformers/en/model_doc/llava" target="_blank" rel="noopener">Hugging Face Transformers library&lt;/a> has been integrated into the MLC framework using the TVM stack. At the time of writing (November 2024), the default supported text decoders are Llama and Mistral, with a CLIP-trained vision encoder. However, the sizes of these models are often around 7B parameters and larger, making them unsuitable for deployment on small edge devices (and even my M2 MacBook Air). This is why we need to consider smaller models, which are more suitable for our travel recommendation chatbot.&lt;/p>
+&lt;h3 id="llava-onevision">LLaVA OneVision&lt;/h3>
+&lt;p>One of the smallest LLaVA models is the &lt;a href="https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf" target="_blank" rel="noopener">LLaVA OneVision Qwen2 0.5B&lt;/a>, which, as the name suggests, uses the &lt;a href="https://qwenlm.github.io/blog/qwen2/" target="_blank" rel="noopener">Qwen2 language model&lt;/a> with 0.5B parameters.&lt;/p>
+&lt;figure>
+&lt;img src="images/llava_one_vision_performance.png">
+&lt;figcaption>
+LLaVA-OneVision models tackle even the trickiest secondary school math problems with ease. In this example, the model demonstrates its ability to interpret multiple images and coherently apply deductive reasoning (&lt;a href="https://arxiv.org/pdf/2408.03326">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>The LLaVA OneVision Qwen2 0.5B model is particularly suitable for deployment on edge devices, as it is small and lightweight. While we can&amp;rsquo;t expect the same performance that larger models offer, this small LLaVA OneVision model is a good starting point for our travel recommendation chatbot and allows a fast iteration cycle for model development.&lt;/p>
+&lt;p>In contrast to the original LLaVA models, the &lt;a href="https://arxiv.org/abs/2408.03326" target="_blank" rel="noopener">LLaVA OneVision model&lt;/a> uses a SigLIP-pretrained vision encoder, as it has demonstrated higher multi-modal LLM performance among open vision encoders. While we mentioned that in theory, there are no differences between SigLIP and CLIP during inference, the encoders slighlty differ in their Huggingface Transformers implementation. This is why we need to first port the LLaVA OneVision model and its SigLIP vision encoder to the MLC framework. Once again, I&amp;rsquo;ll walk you through how to do in &lt;a href="../edge-llm-embed-llava/">the next blog post&lt;/a>.&lt;/p>
+&lt;br/>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>Multi-modal foundation models allow us to apply state-of-the-art models to new and more complex applications. We&amp;rsquo;ve introduced how we can use a pre-trained vision encoder and text decoder architecture to build a general-purpose vision-language chatbot. The Machine Learning Compiler Project currently supports embedding the LLaVA vision-to-text models on edge devices. However, due to our restricted local device, we will use the smallest LLaVA OneVision model with only 0.5B, which needs to be manually ported to the MLC framework. Thus, we&amp;rsquo;ve taken some time to understand the intricacies between LlaVA model implementations and what this means during model training and testing time.&lt;/p>
+&lt;h3 id="whats-next">What&amp;rsquo;s next?&lt;/h3>
+&lt;p>This blog post provides you with the background knowledge needed to deploy a multi-modal vision-to-text model on edge devices. In &lt;a href="../edge-llm-embed-llava/">the next blog post of this series&lt;/a>, I&amp;rsquo;ll walk you through how to put this knowledge into practice.&lt;/p></description></item><item><title>Shrinking the Impossible (Part 1): Optimizing Foundation Models for Edge Devices with MLC</title><link>https://bellanich.github.io/post/edge-llm-mlc/</link><pubDate>Fri, 29 Nov 2024 00:00:00 +0000</pubDate><guid>https://bellanich.github.io/post/edge-llm-mlc/</guid><description>&lt;!-- Welcome 👋 -->
+&lt;h2 id="table-of-contents">Table of Contents&lt;/h2>
+&lt;!-- - [Table of Contents](#table-of-contents) -->
+&lt;ul>
+&lt;li>&lt;a href="#table-of-contents">Table of Contents&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#introduction">Introduction&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#project-inspiration">Project Inspiration&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#why-edge-foundation-models-matter">Why Edge Foundation Models Matter&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#challenges-of-running-foundation-models-on-edge-devices">Challenges of Running Foundation Models on Edge Devices&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#my-gemma-debacle">My Gemma Debacle&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#the-memory-struggle-is-real">The Memory Struggle Is Real&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#mlc-llm-a-quantum-leap-in-deploying-edge-foundation-models">MLC LLM: A Quantum Leap in Deploying Edge Foundation Models&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#how-does-mlc-llm-work">How does MLC LLM work?&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#quantization">Quantization&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#what-is-quantization">What is Quantization?&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#quantization-methods">Quantization Methods&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#1-post-training-quantization-ptq">1. Post-Training Quantization (PTQ)&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#2-quantization-aware-training">2. Quantization-Aware Training&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#quantizing-transformers">Quantizing Transformers&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#out-of-the-box-mlc-llm-solutions">Out of the Box MLC LLM Solutions&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#custom-solutions">Custom Solutions&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#hardware-optimizations">Hardware Optimizations&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#just-in-time-model-compilation">Just-in-Time Model Compilation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#mlc-llm-implementation">MLC LLM Implementation&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#conclusion">Conclusion&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#whats-next">What&amp;rsquo;s next?&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>Ever since ChatGPT went mainstream, I’ve been captivated by the rapid advancements in large language models (LLMs). As a machine learning engineer, I’ve been eagerly awaiting my chance to experiment with these groundbreaking models. Yet, the reality of deploying and managing the required infrastructure — and its massive cost — always made me pause.&lt;/p>
+&lt;!-- the reality of deploying and managing the required infrastructure — not to mention the potential drain on my wallet (looking at you, AWS) — was a major roadblock. -->
+&lt;h3 id="project-inspiration">Project Inspiration&lt;/h3>
+&lt;p>This June at the &lt;a href="https://developers.googleblog.com/en/bringing-the-io-magic-to-berlin/" target="_blank" rel="noopener">Google I/O Connect Event in Berlin&lt;/a>, I realized my vision of working with server-free LLMs wasn’t as far-fetched as I’d thought. Google showcased &lt;a href="https://deepmind.google/technologies/gemini/nano/" target="_blank" rel="noopener">Geminin nano, a powerful LLM integrated directly into their latest Android devices&lt;/a>. While it wasn’t accessible to developers yet, it was a glimpse of what might soon be possible.&lt;/p>
+&lt;figure>
+&lt;img src="images/gemini_nano.png" width="75%">
+&lt;figcaption>
+Google originally launched Gemini Nano on the Pixel 8 Pro in December 2023. This edge LLM has been gradually rolled out to other popular Android phones, including Samsung's Galaxy S24 series (&lt;a href="https://www.yahoo.com/tech/google-making-gemini-nano-available-152409469.html?guccounter=1&amp;guce_referrer=aHR0cHM6Ly93d3cuZ29vZ2xlLmNvbS8&amp;guce_referrer_sig=AQAAAHbJFvaHe7eD1PbQpKUqhsrT8SThokdhZahaoc7cwPDe_CDZhRjsXmtWYQBrMe6qSuBdqUYns1O1ykdkfbAzILy3JmKegzVfSvByqwDsrx7YXxFfNXvM9-z5gPBhkVHS4I6eFneAMIGbStXAkKunwr-kqduoZ5jQb8CaGeTrpVNe">source&lt;/a>,
+&lt;a href="https://deepmind.google/technologies/gemini/nano/">image credit&lt;/a>).
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Inspired by this progress, I set out to test the limits of edge LLMs. Could I, as a solo enthusiast, deploy a LLM on an edge device like my iPhone? To make the challenge even more intriguing, I decided to aim for a multi-modal LLM. After all, who wouldn’t want a private chatbot that understands your phone’s photo gallery and keeps your secrets safe?&lt;/p>
+&lt;p>In this 4-part blog series, I document my experiment to prove that you don’t need a sprawling server farm or a high-end workstation to dive into the latest AI technology. With a bit of machine learning knowledge, solid documentation, and plenty of determination, you can get started with state-of-the-art models without a painful cloud bill (looking at you, AWS).&lt;/p>
+&lt;!-- * Link to 2nd blog post
+* Link to 3rd blog post
+* Link to 4th blog post -->
+&lt;h3 id="why-edge-foundation-models-matter">Why Edge Foundation Models Matter&lt;/h3>
+&lt;p>Foundation models have traditionally been too massive to run on edge devices like smartphones, IoT gadgets, or embedded systems. As a result, they’re typically hosted on centralized servers, which introduces several challenges:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>Cost barriers.&lt;/strong> Deploying and serving large-scale models (think 10B+ parameters) in the cloud is prohibitively expensive, often costing millions in infrastructure and energy. This creates a significant barrier for students, hobbyists (like me), and smaller organizations looking to experiment with AI. By running models locally on edge devices, the need for expensive server infrastructure disappears, democratizing access to this cutting-edge technology.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Unreliable performance.&lt;/strong> Cloud-based inference depends on a steady internet connection to send data to servers and retrieve results. This back-and-forth can cause frustrating delays, especially in areas with poor connectivity. Edge models, which run directly on local devices, bypass these issues. They deliver faster responses and work well even without an internet connection.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Security concerns.&lt;/strong> Cloud-based systems inherently require sending data to remote servers, which comes with inherent risks. For users, their personal chat data could be exposed in a security breach or misused without consent. Businesses, meanwhile, must navigate strict regulations like GDPR or HIPAA when transferring sensitive data off-device. By processing data locally, edge models eliminate these risks, ensuring that your personal information stays private.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;p>In short, edge foundation models break down cost barriers, improve reliability, and address privacy concerns. They make AI more accessible for curious minds and businesses alike while offering end users more peace of mind.&lt;/p>
+&lt;h3 id="challenges-of-running-foundation-models-on-edge-devices">Challenges of Running Foundation Models on Edge Devices&lt;/h3>
+&lt;p>By now, you might be thinking, Edge foundation models sound amazing! Why isn’t everyone using them? Well, as with most things in life (and AI), there’s a catch. Running foundation models on edge devices isn’t exactly a walk in the park. Let me walk you through some of the challenges, starting with my own cautionary tale.&lt;/p>
+&lt;h4 id="my-gemma-debacle">My Gemma Debacle&lt;/h4>
+&lt;p>About six months ago, I got my hands on Google’s shiny new &lt;a href="https://huggingface.co/google/gemma-2-2b-it" target="_blank" rel="noopener">instruction-tuned Gemma 2B model&lt;/a>. Gemma, for those unfamiliar, is the “baby” version of &lt;a href="https://deepmind.google/technologies/gemini/" target="_blank" rel="noopener">DeepMind’s Gemini family&lt;/a> — a lightweight, open-weight LLM designed for resource-constrained environments.&lt;/p>
+&lt;figure>
+&lt;img src="images/gemma2b_ranking.png" width="100%">
+&lt;figcaption>
+Why Gemma2B? In a nutshell, it's very impressive for its size. In benchmarks tasks, &lt;a href="https://arxiv.org/pdf/2408.00118">Gemma 2B's performance is comparable those of 7B - 9B LLMs&lt;/a>. It also &lt;a href="https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard">consistently tops the HuggingFace leaderboard for smaller LLMs&lt;/a>.
+&lt;/figcaption>
+&lt;/figure>
+&lt;figure>
+&lt;img src="images/gemma2b_languages.png" width="60%">
+&lt;figcaption>
+Gemma 2B calls itself a polyglot, claiming fluency in a bunch of languages. If that checks out, it’s a pretty exciting pick for global business apps — just the kind of thing a solo developer (like me) could put to work.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Basically, Gemma 2B was designed for laptops, desktops, and modest cloud setups. It sounded perfect for my trusty MacBook Air M2 (8GB of RAM).&lt;/p>
+&lt;p>Spoiler alert: it wasn’t.&lt;/p>
+&lt;p>I excitedly set up Gemma and attempted to serve my first request. My MacBook? It practically waved a white flag and crashed halfway through.&lt;/p>
+&lt;p>Let’s do the math to see why this happened. The Gemma 2B model has (you guessed it) 2 billion parameters. Using the standard float32 data type, the model parameters alone would require $2B\text{ parameters} * \frac{4 \text{ bytes}}{\text{parameter}} = 8 \text{ billion bytes} = 8 \text{ GB of RAM}$.&lt;/p>
+&lt;p>But that’s not all my machine needs to handle:&lt;/p>
+&lt;ul>
+&lt;li>I need extra memory for activations (the intermediate calculations during inference).&lt;/li>
+&lt;li>The operating system (in my case, macOS) also needs a hefty chunk of RAM to do its thing&lt;/li>
+&lt;/ul>
+&lt;p>In short, my poor MacBook was way out of its depth. Even with more efficient data types like float16 or bfloat16 (which halve memory usage), the combined memory demands of the model, activations, and system processes were just too much. Now, imagine trying to squeeze this kind of workload onto a smartphone with even less RAM. You’d be lucky if your phone didn’t catch fire (kidding&amp;hellip;mostly).&lt;/p>
+&lt;h4 id="the-memory-struggle-is-real">The Memory Struggle Is Real&lt;/h4>
+&lt;p>Edge devices are, by design, resource-constrained. They’re great for portability, but they aren’t built to handle the sheer memory and compute demands of large language models. Even lightweight models like Gemma, which aim to close this gap, can still overwhelm devices with limited RAM or processing power.&lt;/p>
+&lt;p>But don’t despair! Engineers and researchers are tackling these challenges head-on. By using model compression techniques like quantization, pruning, and distillation, they’ve managed to shrink memory and compute requirements significantly. Add to this a new wave of hardware optimization techniques, and edge deployment is more feasible than ever.&lt;/p>
+&lt;p>Now, innovative tools are building on these advancements to make edge LLMs not just possible, but practical for a wide range of devices. Curious about how these breakthroughs are unfolding in real-world applications? Let me introduce you to one powerful solution: the MLC LLM framework.&lt;/p>
+&lt;h3 id="mlc-llm-a-quantum-leap-in-deploying-edge-foundation-models">MLC LLM: A Quantum Leap in Deploying Edge Foundation Models&lt;/h3>
+&lt;p>Fast forward to November 2024, I decided to try the same task as before but with &lt;a href="https://llm.mlc.ai" target="_blank" rel="noopener">the Machine Learn Compiler (MLC) LLM Engine&lt;/a>. This time, I deployed &lt;a href="https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC" target="_blank" rel="noopener">a pre-quantized version of this Gemma 2B model&lt;/a> onto an edge device — specifically, an iOS app. The results blew me away.&lt;/p>
+&lt;p>For starters, I encountered zero performance issues on my MacBook Air. The pre-quantized and hardware-optimized Gemma model ran smoothly and efficiently, without any of the lag or crashes I had faced with six months earlier.&lt;/p>
+&lt;p>But here&amp;rsquo;s where things really got exciting: the quality of the responses. They were practically indistinguishable from the likes of massive, cloud-based LLMs in an everyday conversation. Curious to see how well this mini-model handled other languages, I threw some Spanish and German at it. To my non-discerning eye, the results looked spot-on. (I’d love to hear what native speakers think, though.)&lt;/p>
+&lt;figure>
+&lt;img src="images/gemma2b_spanish.png" width="100%">
+&lt;figcaption>
+I decided to practice my very rusty Spanish and seek vacation inspiration in one-go. Here are Gemma's recommendations for a visit to Valencia, Spain 🇪🇸 in Winter.
+&lt;/figcaption>
+&lt;/figure>
+&lt;figure>
+&lt;img src="images/gemma2b_german.png" width="80%">
+&lt;figcaption>
+Christmas time means Christmas Markets 🎄 — especially when you live so close to Germany 🇩🇪. So, I decided to see if Gemma could give me any fun suggestions in German.
+&lt;/figcaption>
+&lt;/figure>
+&lt;p>Now, you might be wondering: How did MLC manage to pull this off? Let’s take a step back and dive into the tech behind this feat.&lt;/p>
+&lt;br/>
+&lt;h2 id="how-does-mlc-llm-work">How does MLC LLM work?&lt;/h2>
+&lt;p>At a high-level, &lt;a href="https://github.com/mlc-ai/mlc-llm" target="_blank" rel="noopener">the MLC LLM project&lt;/a> makes it possible to embed smaller LLMs (under 10B parameters) on edge devices through a streamlined, three-step process:&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Quantize LLM weights&lt;/strong> as the model is downloaded. This prevented my machine from crashing due to insufficient memory.&lt;/li>
+&lt;li>&lt;strong>Embed the quantized model&lt;/strong> with hardware-specific optimizations applied during the model compilation stage.&lt;/li>
+&lt;li>&lt;strong>Provide a simple, pre-built user interface&lt;/strong> to interact with your newly embedded foundation model.&lt;/li>
+&lt;/ol>
+&lt;figure>
+&lt;img src="./images/mlc_llm_workflow.png">
+&lt;figcaption> The MLCEngine embeds LLMs across different software platforms through model quantization and hardware-specific optimization (&lt;a href="[url](https://llm.mlc.ai)">image credit&lt;/a>)&lt;/figcaption>
+&lt;/figure>
+&lt;p>MLC offers a user-friendly, open-source chat application for both Android and iOS. Alternatively, it implements its own version of &lt;a href="https://platform.openai.com/docs/api-reference/introduction" target="_blank" rel="noopener">OpenAI&amp;rsquo;s Python API&lt;/a>, making it easy to integrate the optimized LLM into your own existing projects.&lt;/p>
+&lt;h3 id="quantization">Quantization&lt;/h3>
+&lt;p>&lt;a href="https://llm.mlc.ai/docs/get_started/introduction.html#chat-cli" target="_blank" rel="noopener">MLC LLM caches pre-quantized model weights and compiled model library locally&lt;/a>, which means you &lt;strong>only&lt;/strong> need to &lt;strong>download and quantize the model once&lt;/strong>. After that, the quantized model is ready to run on your device without requiring repeated downloads. This saves both time and bandwidth, making the process smoother and more efficient.&lt;/p>
+&lt;h4 id="what-is-quantization">What is Quantization?&lt;/h4>
+&lt;p>In simple terms, quantization is the process of reducing the precision of the numbers that represent a model’s parameters. The goal? Shrink the model’s memory footprint while keeping its performance as close to the original as possible. The real magic happens when you see the cost savings—quantization can cut your cloud compute bills by half, a quarter, or even a sixth, without any noticeable drop in performance. For massive models like LLMs, those savings can really add up.&lt;/p>
+&lt;blockquote>
+&lt;p>Take the example of &lt;a href="https://www.yurts.ai" target="_blank" rel="noopener">yurts&lt;/a>, a contractor for the U.S. government. They &lt;a href="https://www.yurts.ai/blog/enhancing-enterprise-efficiency-quantization-for-cost-effective-llm-deployment" target="_blank" rel="noopener">slashed its monthly cloud computing bill from USD 24,000 to USD 4,000 for a 70B parameter LLM&lt;/a> by using a quantization method called &lt;a href="https://huggingface.co/docs/transformers/main/en/quantization/awq" target="_blank" rel="noopener">Activation-aware Weight Quantization (AWQ)&lt;/a>. Pretty impressive, right?&lt;/p>
+&lt;/blockquote>
+&lt;h4 id="quantization-methods">Quantization Methods&lt;/h4>
+&lt;p>When it comes to quantizing a model, there are a few common methods, but the two main approaches are:&lt;/p>
+&lt;h5 id="1-post-training-quantization-ptq">1. Post-Training Quantization (PTQ)&lt;/h5>
+&lt;p>After a model is trained, you can apply quantization to reduce the bit-width of its weights. The best part? It’s quick, easy, and requires minimal changes to the original model, while still offering significant memory savings.&lt;/p>
+&lt;p>One common PTQ technique is grouped quantization, where the model’s weights are grouped based on features like their layer or importance. Each group is quantized separately, making the process more tailored and efficient. This method has been around since the late 1990s and continues to evolve as a way to balance performance and memory efficiency.&lt;/p>
+&lt;p>Some weight groups are more sensitive to quantization errors and need higher precision (more bits) to maintain accuracy. Others can handle lower precision without a noticeable hit to performance.&lt;/p>
+&lt;p>With the rise of foundation models, more specific implementations of grouped quantization have emerged. For an in-depth look, check out &lt;a href="https://arxiv.org/abs/2212.09720" target="_blank" rel="noopener">&amp;ldquo;The case for 4-bit precision: k-bit Inference Scaling Laws&amp;rdquo;&lt;/a> and &lt;a href="https://arxiv.org/abs/2206.09557" target="_blank" rel="noopener">&amp;ldquo;The LUT-GEMM: Quantized Matrix Multiplication based on LUTs for Efficient Inference in Large-Scale Generative Language Models&amp;rdquo;&lt;/a>.&lt;/p>
+&lt;p>More recently, techniques like &lt;a href="https://huggingface.co/docs/transformers/en/quantization/awq" target="_blank" rel="noopener">Activation-aware Weight Quantization (AWQ)&lt;/a> have taken this dynamic quantization approach even further. AWQ uses activation statistics to pinpoint the most important individual weights and ensures they aren’t over-quantized, allowing for better compression without sacrificing performance.&lt;/p>
+&lt;h5 id="2-quantization-aware-training">2. Quantization-Aware Training&lt;/h5>
+&lt;p>This method goes a step further by training the model with lower precision in mind from the start. By optimizing the model for reduced precision during training, you often get better results than you would with post-training quantization. Essentially, it allows the model to “learn” how to perform well with less precision, resulting in better overall performance. However, as we focus on deploying pre-trained models, we won’t explore this method further.&lt;/p>
+&lt;h4 id="quantizing-transformers">Quantizing Transformers&lt;/h4>
+&lt;p>When quantizing Transformers, it’s not just the weights that need attention—activations play a big role too. Activations are the intermediate values generated during the model&amp;rsquo;s forward pass as it processes the input data. In a Transformer, these are the values produced at each layer as it handles each token. Just like with weights, activations can also be compressed during quantization, which further reduces memory usage.&lt;/p>
+&lt;p>But memory management doesn’t end with weights and activations. For Transformers, there’s also &lt;a href="https://huggingface.co/docs/transformers/kv_cache#what-is-cache-and-why-we-should-care" target="_blank" rel="noopener">the key-value (KV) cache&lt;/a> — this stores the context of the input sequence as the model processes longer inputs. As the model processes longer and longer inputs, it needs more memory to store the increasing number of keys and values. To keep things efficient,&lt;a href="https://llm.mlc.ai/docs/compilation/compile_models.html#generate-mlc-chat-config" target="_blank" rel="noopener"> MLC LLM provides additional memory optimization techniques, like sliding windows&lt;/a>, which help manage memory usage even when dealing with longer sequences.&lt;/p>
+&lt;figure>
+&lt;img src="./images/kv_cache.gif">
+&lt;figcaption> The key-value (KV) cache in Transformers preserves the context of processed tokens, enabling the model to "remember" earlier parts of a conversation. Yet, as the conversation grows, the cache scales up rapidly, incurring risks of out-of-memory errors on edge devices if not handled properly. (&lt;a href="https://jalammar.github.io/illustrated-gpt2/">image credit&lt;/a>)&lt;/figcaption>
+&lt;/figure>
+&lt;h4 id="out-of-the-box-mlc-llm-solutions">Out of the Box MLC LLM Solutions&lt;/h4>
+&lt;p>As you can probably guess, the MLC Engine only implements post-training quantization (since we have no control over an open sourced LLM&amp;rsquo;s training process). In particular, &lt;a href="https://github.com/mlc-ai/mlc-llm/blob/main/docs/compilation/configure_quantization.rst" target="_blank" rel="noopener">MLC LLM implements the grouping quantization methods&lt;/a> shown below.&lt;/p>
+&lt;figure>
+&lt;div style="padding-left: 50px; padding-right: 20px;">
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Method Name&lt;/th>
+&lt;th>Weight Quantization&lt;/th>
+&lt;th>Activation Quantization&lt;/th>
+&lt;th>Version No.&lt;/th>
+&lt;th>Stable?&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>q0f16&lt;/td>
+&lt;td>None&lt;/td>
+&lt;td>16 bits&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>q0f32&lt;/td>
+&lt;td>None&lt;/td>
+&lt;td>32 bits&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>q3f16_1&lt;/td>
+&lt;td>3 bits&lt;/td>
+&lt;td>16 bits&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>q4f16_1&lt;/td>
+&lt;td>4 bits&lt;/td>
+&lt;td>16 bits&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>q4f32_1&lt;/td>
+&lt;td>4 bits&lt;/td>
+&lt;td>32 bits&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>q4f16_awq&lt;/td>
+&lt;td>4 bits&lt;/td>
+&lt;td>16 bits&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>&lt;strong>No&lt;/strong>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;figcaption>Table 1: An Overview of MLC's implemented quantization methods (&lt;a href="https://github.com/mlc-ai/mlc-llm/blob/main/docs/compilation/configure_quantization.rst">source&lt;/a>).&lt;/figcaption>
+&lt;/figure>
+&lt;p>MLC Enginer also offers an AWQ implementation (called &lt;code>q4f16_awq&lt;/code>), but it&amp;rsquo;s currently &lt;strong>unstable&lt;/strong> so use it at your own risk.&lt;/p>
+&lt;p>Of course, the folks behind MLC have already gone and quantized most of the very popular open-source LLMs. You can download these pre-quantized model weights from &lt;a href="https://huggingface.co/mlc-ai" target="_blank" rel="noopener">their official MLC AI&amp;rsquo;s HuggingFace account&lt;/a>.&lt;/p>
+&lt;p>If you want to quantize a new model, then there&amp;rsquo;s a little more work involved. MLC right now supports quantization of these model types: &lt;code>baichuan&lt;/code>, &lt;code>bert&lt;/code>, &lt;code>chatglm3&lt;/code>, &lt;code>cohere&lt;/code>, &lt;code>eagle&lt;/code>, &lt;code>gemma&lt;/code>, &lt;code>gemma2&lt;/code>, &lt;code>gpt2&lt;/code>, &lt;code>gpt_bigcode&lt;/code>, &lt;code>gpt_neox&lt;/code>, &lt;code>internlm&lt;/code>, &lt;code>internlm2&lt;/code>, &lt;code>llama&lt;/code>, &lt;code>llava&lt;/code>, &lt;code>medusa&lt;/code>, &lt;code>minicpm&lt;/code>, &lt;code>mistral&lt;/code>, &lt;code>mixtral&lt;/code>, &lt;code>orion&lt;/code>, &lt;code>phi&lt;/code>, &lt;code>phi3&lt;/code>, &lt;code>phi3v&lt;/code>, &lt;code>qwen&lt;/code>, &lt;code>qwen2&lt;/code>, &lt;code>qwen2_moe&lt;/code>, &lt;code>rwkv5&lt;/code>, &lt;code>rwkv6&lt;/code>, &lt;code>stable_lm&lt;/code>, and &lt;code>starcoder2&lt;/code>.&lt;/p>
+&lt;p>So, if you want to quantize of these model types yourself, then all you have to do is &lt;a href="https://llm.mlc.ai/docs/get_started/introduction.html#id8" target="_blank" rel="noopener">run a few simple commands&lt;/a>.&lt;/p>
+&lt;h4 id="custom-solutions">Custom Solutions&lt;/h4>
+&lt;p>If you want to quantize an unsupported model type, you&amp;rsquo;ll need to extend MLC LLM&amp;rsquo;s source code. This involves inferring your target model&amp;rsquo;s architecture from its source &lt;code>config.json&lt;/code> file &lt;a href="https://huggingface.co" target="_blank" rel="noopener">on HuggingFace&lt;/a> and wrapping its original Python definition (e.g., from &lt;a href="https://pypi.org/project/transformers/" target="_blank" rel="noopener">the &lt;code>transformers&lt;/code> Python library&lt;/a>) with MLC LLM&amp;rsquo;s wrappers. I ended up having to do this to support multi-modal functional in &lt;a href="../edge-llm-embed-llava/">the 3rd blog post in this series&lt;/a>.&lt;/p>
+&lt;br/>
+&lt;h3 id="hardware-optimizations">Hardware Optimizations&lt;/h3>
+&lt;p>Quantization is just one part of MLC’s bag of tricks. The other? Squeezing every last drop of performance out of your hardware through smart optimizations. See, your LLM model might start as high-level Python code, but it doesn’t interact directly with your device’s hardware. There’s a crucial middle step where MLC translates that model into something your CPU or GPU can actually understand—and it does this in the most efficient way possible.&lt;/p>
+&lt;h4 id="just-in-time-model-compilation">Just-in-Time Model Compilation&lt;/h4>
+&lt;p>&lt;strong>Just-in-Time (JIT) model compilation&lt;/strong> is the secret sauce behind MLC’s stellar efficiency. Instead of pre-compiling everything in advance or running the model eagerly line-by-line, JIT optimizes your model right before it executes, ensuring it’s perfectly suited to your specific hardware.&lt;/p>
+&lt;p>JIT strikes a balance between two compiler approaches:&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Interpreted execution&lt;/strong> processes code step-by-step as it runs. This makes the code super flexible and easy to debug, but leaves no room for optimizations. In other words, it&amp;rsquo;s painfully slow.&lt;/li>
+&lt;li>&lt;strong>Ahead-of-Time (AOT) compilation&lt;/strong> pre-compiles everything into a fixed version before execution. This is much faster, but comes with a catch: we assume a one-size-fits-all solution. If the model encounters unexpected conditions or hardware variations, AOT’s rigid approach can leave performance on the table because it can’t take full advantage of the specific device running the code.&lt;/li>
+&lt;/ol>
+&lt;p>JIT avoids these pitfalls by waiting until runtime to optimize. It tailors the model’s code to your hardware and execution context just before runtime, ensuring maximum efficiency. Here&amp;rsquo;s how this process works:&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Tracing or scripting.&lt;/strong> First, the engine analyzes your model’s high-level code and maps out its computation graph and operations. Think of it as creating a blueprint for what the model will do&lt;/li>
+&lt;li>&lt;strong>Optimization.&lt;/strong> Next, the engine gets to work refining that blueprint. It fuses operations, removes redundancies, and inlines functions, streamlining execution wherever possible. (It’s like an architect revising a blueprint for a more efficient construction process.)&lt;/li>
+&lt;li>&lt;strong>Low-level code generation.&lt;/strong> Once the optimizations are done, the graph is compiled into low-level machine code tailored to your specific hardware—whether that’s a CPU, GPU, or something fancier.&lt;/li>
+&lt;li>&lt;strong>Execution.&lt;/strong> Finally, the optimized code is executed, running faster and using less memory thanks to all the pre-launch optimizations.&lt;/li>
+&lt;/ol>
+&lt;p>MLC uses JIT model compilation to get the most out of your edge device&amp;rsquo;s limited resources. And the best part? This process is abstracted away into &lt;a href="https://llm.mlc.ai/docs/compilation/compile_models.html" target="_blank" rel="noopener">a few simple CLI commands&lt;/a>.&lt;/p>
+&lt;h4 id="mlc-llm-implementation">MLC LLM Implementation&lt;/h4>
+&lt;p>Deep neural networks are computationally demanding. Hence, most deep learning frameworks include built-in JIT compilation extensions. For example, &lt;a href="https://github.com/openxla/xla?tab=readme-ov-file" target="_blank" rel="noopener">Accelerated Linear Algebra (XLA)&lt;/a>, the backbone of JAX, offers &lt;a href="https://openxla.org/xla" target="_blank" rel="noopener">cross-framework JIT support&lt;/a>. Looking specifically at PyTorch, &lt;a href="https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html" target="_blank" rel="noopener">&lt;code>torch.compile&lt;/code> provides a general-purpose solution that supports both training and inference&lt;/a>.&lt;/p>
+&lt;p>However, MLC takes it a step further by leveraging &lt;a href="https://tvm.apache.org" target="_blank" rel="noopener">Apache&amp;rsquo;s Tensor Virtual Machine (TVM)&lt;/a> for even deeper hardware-level optimizations.&lt;/p>
+&lt;figure>
+&lt;img src="./images/tvm_flexible.png">
+&lt;figcaption> We can think of TVM as an improvement on PyTorch's optimizations, offering advanced optimizations and hardware-specific tuning that PyTorch's JIT lacks. Additionally, TVM is easy to use due to the separation of its compiler and runtime components. This makes it possible for me to compile a ML model on one machine (e.g., a MacBook) and deploy it on another (e.g., a Raspberry Pi). (&lt;a href="https://tvm.apache.org/docs/how_to/deploy/index.html">image credit&lt;/a>)&lt;/figcaption>
+&lt;/figure>
+&lt;p>&lt;a href="https://mlc.ai/chapter_integration/index.html" target="_blank" rel="noopener">TVM works by providing a Python API for tensor operations like matrix multiplications, sums, and type conversions.&lt;/a> It also makes it a breeze to port models from PyTorch. Once we have the model in TVM, we can translate it into C++ as we optimize it for execution.&lt;/p>
+&lt;p>Here’s how exactly TVM supercharges model optimization:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>Operation Fusion.&lt;/strong> TVM combines smaller operations (like element-wise additions or multiplications) into larger, more efficient ones.&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>Example.&lt;/strong> Instead of calculating ReLU(x) followed by Add(x, y), TVM can combine them into a single, efficient kernel, saving memory and time.&lt;/p>
+&lt;/blockquote>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Memory Layout Optimization:.&lt;/strong> TVM fine-tunes memory access patterns to align with the hardware’s strengths. For example, GPUs perform better when accessing data in large, coalesced blocks, while CPUs benefit from loop optimizations that prevent cache misses.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Kernel Selection and Tuning.&lt;/strong> A &amp;ldquo;kernel&amp;rdquo; is a specialized function designed to perform specific operations, like matrix multiplication. TVM either selects the best pre-tuned kernels or auto-tunes them for maximum performance on the target hardware.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;p>These optimizations make it possible to (hypothetically) fit a 7B+ parameter model onto an iPhone. But of course, there’s a trade-off: the more optimizations we apply, the less flexible the model becomes. Debugging also gets trickier — any issues that arise are often low-level errors, especially when input sizes change.&lt;/p>
+&lt;p>Despite these challenges, the benefits far outweigh the costs. Without TVM, deploying models on edge devices would be much more difficult.&lt;/p>
+&lt;br/>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>In the past six months, the AI research community has made groundbreaking strides in optimizing foundation models for edge devices. Back in June 2024, my personal machine crashed when I tried to run the Gemma 2B model locally — without quantization or hardware optimizations. But thanks to the rapid progress in this field, even solo enthusiasts like myself can now, as of November 2024, easily deploy the same model (or even larger ones) locally—without needing to become compiler engineers.&lt;/p>
+&lt;p>In this blog post, I’ve introduced the Machine Learning Compiler (MLC) as a powerful new tool to make this possible. I’ve also walked you through its inner workings and provided essential background knowledge to help you get started.&lt;/p>
+&lt;h3 id="whats-next">What&amp;rsquo;s next?&lt;/h3>
+&lt;p>In &lt;a href="../edge-llm-vision-encoders">my next blog post&lt;/a>, we’ll dive into how we can extend the MLC Engine to support embedding LLMs that aren’t natively supported. After all, our goal is to deploy a &lt;strong>multi-modal&lt;/strong> LLM on an iPhone.&lt;/p></description></item></channel></rss>
