@@ -443,7 +443,7 @@ text-align: center;
 &lt;p>&lt;strong>CPU and GPU.&lt;/strong> This combination is capable but not recommended. GPUs were originally built for desktops with unlimited power, so they’re plausible but not ideal for running heavy models on mobile devices. It&amp;rsquo;s typically used for Macs with powerful GPUs or as a fallback for older devices without a Neural Engine.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>&lt;strong>CPU ane ANE.&lt;/strong> This is Apple&amp;rsquo;s recommended configuration for deploying intensive models on iPhones and iPads. ANE was specifically designed for ML inference workloads and delivers comparable performance to GPU at a fraction of the power consumption.&lt;/p>
+&lt;p>&lt;strong>CPU and ANE.&lt;/strong> This is Apple&amp;rsquo;s recommended configuration for deploying intensive models on iPhones and iPads. ANE was specifically designed for ML inference workloads and delivers comparable performance to GPU at a fraction of the power consumption.&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;p>In our case, I configured &lt;code>coreml-stable-diffusion-v1-5-palettized&lt;/code> to run primarily on the Neural Engine with CPU fallback for unsupported operations. This hybrid approach maximizes performance where it counts while maintaining graceful degradation for edge cases.&lt;/p>
